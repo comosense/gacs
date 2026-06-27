@@ -1,12 +1,12 @@
 # gacs
 
-A secure, deterministic password and hash generator written in Rust.
+A secure, deterministic ASCII character generator written in Rust.
 
-`gacs` is a fast CLI tool that generates secure, reproducible passwords and hashes based on a given seed string, an optional salt (file), and specific character sets.
+`gacs` is a fast CLI tool that generates secure, reproducible ASCII characters based on a given seed string, an optional salt (file), and specific character sets.
 
 ## Features
 
-* **Deterministic Generation**: Generate the exact same strong password every time, as long as you provide the same seed and conditions.
+* **Deterministic Generation**: Generate the exact same ASCII characters (such as a strong password) every time, as long as you provide the same seed and conditions.
 * **File-based Salting**: Use any local file (images, documents, etc.) as a cryptographic salt. The tool streams large files efficiently without consuming massive amounts of memory.
 * **Flexible Character Sets**: Choose from 3 built-in base character sets depending on your needs:
   * `64`: BASE64 compatible
