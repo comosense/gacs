@@ -37,7 +37,7 @@ cargo build --release
 
 ### Basic Generation
 
-Pass a seed string to generate a password using the default settings (32 characters, password-safe charset).
+Pass a seed string to generate characters using the default settings (32 characters, password-safe charset).
 
 ```bash
 $ gacs my_secret_seed
@@ -49,7 +49,7 @@ pgHuENPMgR...
 
 ### Detailed Output Mode
 
-Add the `-d` (`--detail`) flag to display the exact parameters (seed, charset, etc.) used during generation alongside the final password.
+Add the `-d` (`--detail`) flag to display the exact parameters (seed, charset, etc.) used during generation alongside the final characters.
 
 ```bash
 $ gacs my_secret_seed -d
@@ -96,7 +96,7 @@ $ gacs my_secret_seed -r 'Zz9:^&*'
 ```text
 Arguments:
   [SEED]
-          Base string to generate the password from
+          Base string to generate the characters from
 
 Options:
   -c, --charset <STYLE>
@@ -109,7 +109,7 @@ Options:
           Optional file to use as an additional cryptographic salt
 
   -l, --length <LENGTH>
-          Length of the generated password
+          Length of the generated characters
 
           [default: 32]
 
@@ -117,7 +117,7 @@ Options:
           Replace specific characters in the charset (Format: 'target:replacement') Example: -r 'Zz9:^&*' replaces 'Z', 'z', and '9' with '^', '&', and '*'
 
   -d, --detail
-          Print detailed configuration along with the generated password
+          Print detailed configuration along with the generated characters
 
   -h, --help
           Print help (see a summary with '-h')

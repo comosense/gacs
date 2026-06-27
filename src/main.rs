@@ -141,14 +141,14 @@ impl std::fmt::Display for CharsetStyle {
     }
 }
 
-/// A secure, deterministic password and hash generator.
+/// A secure, deterministic ASCII character generator.
 ///
-/// Generates reproducible passwords based on a given seed,
+/// Generates reproducible characters based on a given seed,
 /// an optional salt file, and specific character sets.
 #[derive(Parser)]
 #[command(author, version)]
 struct Args {
-    /// Base string to generate the password from
+    /// Base string to generate the characters from
     #[arg(value_name = "SEED")]
     seed: Option<String>,
 
@@ -161,7 +161,7 @@ struct Args {
     #[arg(short, long, value_name = "FILE")]
     file: Option<PathBuf>,
 
-    /// Length of the generated password
+    /// Length of the generated characters
     #[arg(short, long, value_name = "LENGTH", default_value_t = 32)]
     length: usize,
 
@@ -170,7 +170,7 @@ struct Args {
     #[arg(short, long, value_name = "RULE")]
     rule: Option<String>,
 
-    /// Print detailed configuration along with the generated password
+    /// Print detailed configuration along with the generated characters
     #[arg(short, long, default_value_t = false)]
     detail: bool,
 }
