@@ -20,7 +20,7 @@ A secure, deterministic password and hash generator written in Rust.
 You will need a Rust build environment (`cargo`). Clone the repository and build it locally.
 
 ```bash
-git clone [https://github.com/comosense/gacs.git](https://github.com/comosense/gacs.git)
+git clone https://github.com/comosense/gacs.git
 cd gacs
 
 # Build with optimizations
@@ -41,7 +41,7 @@ Pass a seed string to generate a password using the default settings (32 charact
 
 ```bash
 $ gacs my_secret_seed
-hPbY$r@Hc-...
+pgHuENPMgR...
 
 ```
 
@@ -57,7 +57,7 @@ $ gacs my_secret_seed -d
 [File(salt)]
 [Length] 32
 [Character set] ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
--> hPbY$r@Hc-...
+-> pgHuENPMgR...
 
 ```
 
