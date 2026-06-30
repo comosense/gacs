@@ -1,11 +1,12 @@
 [package]
 name = "gacs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.6.1", default-features = false, features = ["derive", "help", "std"] }
+hex = { version = "0.4.3" }
 sha2 = { version = "0.11.0", default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
 
 [profile.release]
 codegen-units = 1

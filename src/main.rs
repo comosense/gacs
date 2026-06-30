@@ -1,264 +1,152 @@
-use clap::{Parser, ValueEnum};
 use sha2::{Digest, Sha256, Sha512, digest::Output};
 use std::{
-    fmt::Write,
     fs::File,
     io::Read,
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
+use thiserror::Error;
 
-const TABLE_LEN: usize = 1 << 6;
-const CHARSET_STYLE: [[u8; TABLE_LEN]; 3] = [
-    *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", // BASE64
-    *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", // URL safe
-    *b"ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_", // Password safe
-];
-const RULE_DELIMITER: char = ':';
+use gacs::{Charset, Generator, GeneratorError};
+
+const DEFAULT_CHARSET: &str = "ps";
+const DEFAULT_LENGTH: usize = 32;
 const FILE_BUFFER_SIZE: usize = 8_192;
-const U32_BYTES_LEN: usize = ((u32::BITS) / (u8::BITS)) as usize;
+const HASH_BYTES: usize = (512 / u8::BITS) as usize;
 
-const A: u64 = 1_664_525; // [alt1] 1103515245, [alt2] 214013, [alt3] 25214903917
-const C: u64 = 1_013_904_223; // [alt1] 12345, [alt2] 2531011, [alt3] 11
-const M: u64 = 1 << 32; // [alt1] 1 << 31, [alt2] 1 << 31, [alt3] 1 << 48
-
-#[derive(Debug)]
-enum TblError {
-    InvalidReplaceRule,
-    InvalidReplaceChars,
-    CharsetUtf8ParseError(std::str::Utf8Error),
-    InvalidSource,
-    SourceSliceError(std::array::TryFromSliceError),
-    LengthExceedsMaximum(usize, usize),
-    OutputUtf8ParseError(std::string::FromUtf8Error),
-}
-
-impl std::fmt::Display for TblError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TblError::InvalidReplaceRule => {
-                write!(
-                    f,
-                    "invalid replace rule: expected 'target:replacement' (e.g., 'Zz9:^&*')"
-                )
-            }
-            TblError::InvalidReplaceChars => write!(
-                f,
-                "invalid replace characters: contains duplicates or characters not found in the base charset"
-            ),
-            TblError::CharsetUtf8ParseError(e) => {
-                write!(f, "failed to decode charset as UTF-8: {e}")
-            }
-            TblError::InvalidSource => write!(f, "invalid source data: length is too short"),
-            TblError::SourceSliceError(e) => write!(f, "failed to slice source: {e}"),
-            TblError::LengthExceedsMaximum(req, max) => {
-                write!(
-                    f,
-                    "requested length ({req}) exceeds the maximum possible length ({max})"
-                )
-            }
-            TblError::OutputUtf8ParseError(e) => {
-                write!(f, "failed to decode mapped output as UTF-8: {e}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for TblError {}
-
-#[derive(Debug)]
+#[derive(Error, Debug)]
 enum GacsError {
-    Tbl(TblError),
-    Io(std::io::Error),
-    Fmt(std::fmt::Error),
-    SystemTime(std::time::SystemTimeError),
+    #[error("CLI Eror: {0}")]
+    Cli(String),
+
+    #[error("Generator error: {0}")]
+    Generator(#[from] GeneratorError),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Fmt error: {0}")]
+    Fmt(#[from] std::fmt::Error),
+
+    #[error("str error: {0}")]
+    Str(#[from] std::str::Utf8Error),
+
+    #[error("time error: {0}")]
+    SystemTime(#[from] std::time::SystemTimeError),
 }
 
-impl std::fmt::Display for GacsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GacsError::Tbl(e) => write!(f, "Table error: {e}"),
-            GacsError::Io(e) => write!(f, "Io error: {e}"),
-            GacsError::Fmt(e) => write!(f, "Formatting error: {e}"),
-            GacsError::SystemTime(e) => write!(f, "System time error: {e}"),
-        }
-    }
-}
-
-impl std::error::Error for GacsError {}
-
-impl From<TblError> for GacsError {
-    fn from(err: TblError) -> Self {
-        GacsError::Tbl(err)
-    }
-}
-
-impl From<std::io::Error> for GacsError {
-    fn from(err: std::io::Error) -> Self {
-        GacsError::Io(err)
-    }
-}
-
-impl From<std::fmt::Error> for GacsError {
-    fn from(err: std::fmt::Error) -> Self {
-        GacsError::Fmt(err)
-    }
-}
-
-impl From<std::time::SystemTimeError> for GacsError {
-    fn from(err: std::time::SystemTimeError) -> Self {
-        GacsError::SystemTime(err)
-    }
-}
-
-#[derive(Debug, Clone, ValueEnum)]
-enum CharsetStyle {
-    #[clap(name = "64")]
-    Base64,
-    #[clap(name = "us")]
-    UrlSafe,
-    #[clap(name = "ps")]
-    PasswordSafe,
-}
-
-impl CharsetStyle {
-    fn charset(&self) -> &[u8; TABLE_LEN] {
-        match self {
-            Self::Base64 => &CHARSET_STYLE[0],
-            Self::UrlSafe => &CHARSET_STYLE[1],
-            Self::PasswordSafe => &CHARSET_STYLE[2],
-        }
-    }
-}
-
-impl std::fmt::Display for CharsetStyle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CharsetStyle::Base64 => write!(f, "64"),
-            CharsetStyle::UrlSafe => write!(f, "us"),
-            CharsetStyle::PasswordSafe => write!(f, "ps"),
-        }
-    }
-}
-
-/// A secure, deterministic ASCII character generator.
-///
-/// Generates reproducible characters based on a given seed,
-/// an optional salt file, and specific character sets.
-#[derive(Parser)]
-#[command(author, version)]
 struct Args {
-    /// Base string to generate the characters from
-    #[arg(value_name = "SEED")]
     seed: Option<String>,
-
-    /// Character set style to use
-    /// (64: BASE64 / us: URL safe / ps: Password safe)
-    #[arg(short, long, value_name = "STYLE", default_value_t = CharsetStyle::PasswordSafe)]
-    charset: CharsetStyle,
-
-    /// Optional file to use as an additional cryptographic salt
-    #[arg(short, long, value_name = "FILE")]
+    charset: String,
     file: Option<PathBuf>,
-
-    /// Length of the generated characters
-    #[arg(short, long, value_name = "LENGTH", default_value_t = 32)]
     length: usize,
-
-    /// Replace specific characters in the charset (Format: 'target:replacement')
-    /// Example: -r 'Zz9:^&*' replaces 'Z', 'z', and '9' with '^', '&', and '*'
-    #[arg(short, long, value_name = "RULE")]
     rule: Option<String>,
-
-    /// Print detailed configuration along with the generated characters
-    #[arg(short, long, default_value_t = false)]
-    detail: bool,
+    verbose: bool,
 }
 
-struct Tbl {
-    charset: [u8; TABLE_LEN],
+impl Args {
+    fn parse() -> Result<Self, GacsError> {
+        let mut args: std::iter::Skip<std::env::Args> = std::env::args().skip(1);
+        let mut seed: Option<String> = None;
+        let mut charset: String = String::from(DEFAULT_CHARSET);
+        let mut file: Option<PathBuf> = None;
+        let mut length: usize = DEFAULT_LENGTH;
+        let mut rule: Option<String> = None;
+        let mut verbose: bool = false;
+
+        while let Some(arg) = args.next() {
+            match arg.as_str() {
+                "-c" | "--charset" => {
+                    let val: String = args.next().ok_or_else(|| {
+                        GacsError::Cli(String::from("Missing value for --charset"))
+                    })?;
+                    if (val != "64") && (val != "us") && (val != "ps") {
+                        return Err(GacsError::Cli(format!(
+                            "Invalid charset '{val}'. Expected '64', 'us', or 'ps'"
+                        )));
+                    }
+                    charset = val;
+                }
+                "-f" | "--file" => {
+                    let val: String = args
+                        .next()
+                        .ok_or_else(|| GacsError::Cli(String::from("Missing value for --file")))?;
+                    file = Some(PathBuf::from(val));
+                }
+                "-l" | "--length" => {
+                    let val: String = args.next().ok_or_else(|| {
+                        GacsError::Cli(String::from("Missing value for --length"))
+                    })?;
+                    length = val.parse::<usize>().map_err(|_| {
+                        GacsError::Cli(format!("Invalid length: '{val}' is not a valid number"))
+                    })?;
+                }
+                "-r" | "--rule" => {
+                    let val: String = args
+                        .next()
+                        .ok_or_else(|| GacsError::Cli(String::from("Missing value for --rule")))?;
+                    rule = Some(val);
+                }
+                "-v" | "--verbose" => {
+                    verbose = true;
+                }
+                "-h" | "--help" => {
+                    print_help();
+                    std::process::exit(0);
+                }
+                "-V" | "--version" => {
+                    println!("gacs {}", env!("CARGO_PKG_VERSION"));
+                    std::process::exit(0);
+                }
+                _ if arg.starts_with('-') => {
+                    return Err(GacsError::Cli(format!("Unknown option '{arg}'")));
+                }
+                _ => {
+                    if seed.is_none() {
+                        seed = Some(arg);
+                    } else {
+                        return Err(GacsError::Cli(format!(
+                            "Unexpected positional argument '{arg}'"
+                        )));
+                    }
+                }
+            }
+        }
+
+        Ok(Args {
+            seed,
+            charset,
+            file,
+            length,
+            rule,
+            verbose,
+        })
+    }
 }
 
-impl Tbl {
-    fn new(charset_style: &CharsetStyle, rule: Option<&String>) -> Result<Self, TblError> {
-        let charset: [u8; TABLE_LEN] = match rule {
-            Some(r) => {
-                let (d, e) = r
-                    .split_once(RULE_DELIMITER)
-                    .ok_or(TblError::InvalidReplaceRule)?;
-                if !d.is_ascii() || !e.is_ascii() || d.len() != e.len() {
-                    return Err(TblError::InvalidReplaceRule);
-                }
-                charset_style
-                    .charset()
-                    .iter()
-                    .copied()
-                    .filter(|&c| !d.as_bytes().contains(&c))
-                    .chain(e.bytes())
-                    .collect::<Vec<u8>>()
-                    .try_into()
-                    .map_err(|_| TblError::InvalidReplaceChars)?
-            }
-            None => *charset_style.charset(),
-        };
-
-        Ok(Self { charset })
-    }
-
-    fn get_charset_str(&self) -> Result<&str, TblError> {
-        std::str::from_utf8(&self.charset).map_err(TblError::CharsetUtf8ParseError)
-    }
-
-    fn map(&self, src: &[u8], len: usize) -> Result<String, TblError> {
-        let (s_bytes, p_bytes) = src
-            .split_at_checked(U32_BYTES_LEN)
-            .ok_or(TblError::InvalidSource)?;
-        let scrambler: u32 =
-            u32::from_be_bytes(s_bytes.try_into().map_err(TblError::SourceSliceError)?);
-        let map_len: usize = (p_bytes.len() * 4).div_ceil(3);
-        if len > map_len {
-            return Err(TblError::LengthExceedsMaximum(len, map_len));
-        }
-
-        let s_charset: [u8; TABLE_LEN] = self.scramble(scrambler);
-        let mut mapped: Vec<u8> = Vec::with_capacity(map_len);
-
-        for chunk in p_bytes.chunks(3) {
-            match chunk {
-                [b0, b1, b2] => {
-                    mapped.push(s_charset[(b0 >> 2) as usize]);
-                    mapped.push(s_charset[(((b0 & 0x03) << 4) | (b1 >> 4)) as usize]);
-                    mapped.push(s_charset[(((b1 & 0x0f) << 2) | (b2 >> 6)) as usize]);
-                    mapped.push(s_charset[(b2 & 0x3f) as usize]);
-                }
-                [b0, b1] => {
-                    mapped.push(s_charset[(b0 >> 2) as usize]);
-                    mapped.push(s_charset[(((b0 & 0x03) << 4) | (b1 >> 4)) as usize]);
-                    mapped.push(s_charset[((b1 & 0x0f) << 2) as usize]);
-                }
-                [b0] => {
-                    mapped.push(s_charset[(b0 >> 2) as usize]);
-                    mapped.push(s_charset[((b0 & 0x03) << 4) as usize]);
-                }
-                _ => unreachable!(),
-            }
-        }
-        mapped.truncate(len);
-
-        String::from_utf8(mapped).map_err(TblError::OutputUtf8ParseError)
-    }
-
-    fn scramble(&self, scrambler: u32) -> [u8; TABLE_LEN] {
-        let mut scrambled: [u8; TABLE_LEN] = self.charset;
-        let mut s_rand: u64 = scrambler as u64;
-
-        for i in 0..scrambled.len() {
-            s_rand = (A * s_rand + C) % M;
-            scrambled.swap(i, (s_rand as usize) % (i + 1));
-        }
-
-        scrambled
-    }
+fn print_help() {
+    println!("A deterministic ASCII character generator.\n");
+    println!("Usage: {} [OPTIONS] [SEED]\n", env!("CARGO_PKG_NAME"));
+    println!("Arguments:");
+    println!("  [SEED]  Base string to generate the characters from\n");
+    println!("Options:");
+    println!(
+        "  -c, --charset <STYLE>  Character set style to use (64, us, ps) [default: {}]",
+        DEFAULT_CHARSET
+    );
+    println!("  -f, --file <FILE>      Optional file to use as an additional cryptographic salt");
+    println!(
+        "  -l, --length <LENGTH>  Length of the generated characters [default: {}]",
+        DEFAULT_LENGTH
+    );
+    println!(
+        "  -r, --rule <RULE>      Replace specific characters in the charset (Format: 'target:replacement')"
+    );
+    println!(
+        "  -v, --verbose          Print detailed configuration along with the generated characters"
+    );
+    println!("  -h, --help             Print help");
+    println!("  -V, --version          Print version");
 }
 
 fn gen_seed() -> Result<String, GacsError> {
@@ -270,15 +158,10 @@ fn gen_seed() -> Result<String, GacsError> {
             .as_bytes(),
     );
 
-    let mut seed: String = String::with_capacity(time_hash.len() * 2);
-    for b in time_hash {
-        write!(&mut seed, "{:02x}", b)?
-    }
-
-    Ok(seed)
+    Ok(hex::encode(time_hash))
 }
 
-fn gen_hash(seed: &str, file: Option<&PathBuf>) -> Result<Vec<u8>, GacsError> {
+fn gen_hash(seed: &str, file: Option<&PathBuf>) -> Result<[u8; HASH_BYTES], GacsError> {
     let mut hasher: Sha512 = Sha512::new();
 
     hasher.update(seed.as_bytes());
@@ -295,13 +178,21 @@ fn gen_hash(seed: &str, file: Option<&PathBuf>) -> Result<Vec<u8>, GacsError> {
         }
     }
 
-    Ok(hasher.finalize().to_vec())
+    Ok(hasher.finalize().into())
 }
 
 fn run() -> Result<(), GacsError> {
-    let args: Args = Args::parse();
+    let args: Args = Args::parse()?;
 
-    let tbl: Tbl = Tbl::new(&args.charset, args.rule.as_ref())?;
+    let generator: Generator = Generator::build(
+        match args.charset.as_str() {
+            "64" => &Charset::Base64,
+            "us" => &Charset::UrlSafe,
+            "ps" => &Charset::PasswordSafe,
+            _ => unreachable!(),
+        },
+        args.rule.as_ref(),
+    )?;
 
     let seed: String = match args.seed {
         Some(s) => s,
@@ -309,9 +200,9 @@ fn run() -> Result<(), GacsError> {
     };
 
     let file: Option<&PathBuf> = args.file.as_ref();
-    let generated: String = tbl.map(&gen_hash(&seed, file)?, args.length)?;
 
-    if args.detail {
+    let generated: String = generator.map(&gen_hash(&seed, file)?, args.length)?;
+    if args.verbose {
         println!("[Seed] {}", seed);
         if let Some(path) = file {
             println!("[File(salt)] {}", path.display());
@@ -319,7 +210,10 @@ fn run() -> Result<(), GacsError> {
             println!("[File(salt)] (none)");
         }
         println!("[Length] {}", args.length);
-        println!("[Character set] {}", tbl.get_charset_str()?);
+        println!(
+            "[Character set] {}",
+            std::str::from_utf8(generator.charset())?
+        );
         println!("-> {}", generated);
     } else {
         println!("{}", generated);

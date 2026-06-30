@@ -1,6 +1,6 @@
 # gacs
 
-A secure, deterministic ASCII character generator written in Rust.
+A deterministic ASCII character generator written in Rust.
 
 `gacs` is a fast CLI tool that generates secure, reproducible ASCII characters based on a given seed string, an optional salt (file), and specific character sets.
 
@@ -9,7 +9,7 @@ A secure, deterministic ASCII character generator written in Rust.
 * **Deterministic Generation**: Generate the exact same ASCII characters (such as a strong password) every time, as long as you provide the same seed and conditions.
 * **File-based Salting**: Use any local file (images, documents, etc.) as a cryptographic salt. The tool streams large files efficiently without consuming massive amounts of memory.
 * **Flexible Character Sets**: Choose from 3 built-in base character sets depending on your needs:
-  * `64`: BASE64 compatible
+  * `64`: BASE64
   * `us`: URL safe
   * `ps`: Password safe (removes visually confusing characters and adds symbols)
 * **Custom Replacement Rules**: Flexibly define rules to replace specific characters in the base set (e.g., replacing `O` and `0` with `@`).
@@ -49,7 +49,7 @@ pgHuENPMgR...
 
 ### Detailed Output Mode
 
-Add the `-d` (`--detail`) flag to display the exact parameters (seed, charset, etc.) used during generation alongside the final characters.
+Add the `-v` (`--verbose`) flag to display the exact parameters (seed, charset, etc.) used during generation alongside the final characters.
 
 ```bash
 $ gacs my_secret_seed -d
@@ -64,6 +64,10 @@ $ gacs my_secret_seed -d
 ### Changing Length and Charset
 
 Use `-l` to specify the length and `-c` to choose the character set (`64`, `us`, `ps`).
+
+* [`64`: BASE64] ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
+* [`us`: URL safe] ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_
+* [`ps`: Password safe] ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
 
 ```bash
 # Generate a 16-character URL-safe string
@@ -95,35 +99,16 @@ $ gacs my_secret_seed -r 'Zz9:^&*'
 
 ```text
 Arguments:
-  [SEED]
-          Base string to generate the characters from
+  [SEED]  Base string to generate the characters from
 
 Options:
-  -c, --charset <STYLE>
-          Character set style to use (64: BASE64 / us: URL safe / ps: Password safe)
-
-          [default: ps]
-          [possible values: 64, us, ps]
-
-  -f, --file <FILE>
-          Optional file to use as an additional cryptographic salt
-
-  -l, --length <LENGTH>
-          Length of the generated characters
-
-          [default: 32]
-
-  -r, --rule <RULE>
-          Replace specific characters in the charset (Format: 'target:replacement') Example: -r 'Zz9:^&*' replaces 'Z', 'z', and '9' with '^', '&', and '*'
-
-  -d, --detail
-          Print detailed configuration along with the generated characters
-
-  -h, --help
-          Print help (see a summary with '-h')
-
-  -V, --version
-          Print version
+  -c, --charset <STYLE>  Character set style to use (64, us, ps) [default: ps]
+  -f, --file <FILE>      Optional file to use as an additional cryptographic salt
+  -l, --length <LENGTH>  Length of the generated characters [default: 32]
+  -r, --rule <RULE>      Replace specific characters in the charset (Format: 'target:replacement')
+  -v, --verbose          Print detailed configuration along with the generated characters
+  -h, --help             Print help
+  -V, --version          Print version
 
 ```
 
