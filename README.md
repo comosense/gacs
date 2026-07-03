@@ -2,7 +2,7 @@
 
 A deterministic ASCII character generator written in Rust.
 
-`gacs` is a fast CLI tool that generates secure, reproducible ASCII characters based on a given seed string, an optional salt (file), and specific character sets.
+`gacs` is a fast CLI tool that generates reproducible ASCII characters based on a given seed string, an optional salt (file), and specific character sets.
 
 ## Features
 
@@ -52,11 +52,11 @@ pgHuENPMgR...
 Add the `-v` (`--verbose`) flag to display the exact parameters (seed, charset, etc.) used during generation alongside the final characters.
 
 ```bash
-$ gacs my_secret_seed -d
-[Seed] my_secret_seed
-[File(salt)]
-[Length] 32
-[Character set] ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
+$ gacs my_secret_seed -v
+Seed: my_secret_seed
+Salt: (none)
+Length: 32
+Character set: ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
 -> pgHuENPMgR...
 
 ```
@@ -77,11 +77,11 @@ $ gacs my_secret_seed -l 16 -c us
 
 ### Using a File as a Salt
 
-Use `-f` to incorporate a local file (such as a secret image or document) as an additional cryptographic salt.
+Use `-s` to incorporate a local file (such as a secret image or document) as an additional cryptographic salt.
 
 ```bash
 # Using an image file as a salt
-$ gacs my_secret_seed -f path/to/secret_image.jpg
+$ gacs my_secret_seed -s path/to/secret_image.jpg
 
 ```
 
@@ -103,7 +103,7 @@ Arguments:
 
 Options:
   -c, --charset <STYLE>  Character set style to use (64, us, ps) [default: ps]
-  -f, --file <FILE>      Optional file to use as an additional cryptographic salt
+  -s, --salt <FILE>      Optional file to use as an additional cryptographic salt
   -l, --length <LENGTH>  Length of the generated characters [default: 32]
   -r, --rule <RULE>      Replace specific characters in the charset (Format: 'target:replacement')
   -v, --verbose          Print detailed configuration along with the generated characters
