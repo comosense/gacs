@@ -45,7 +45,7 @@ pgHuENPMgR...
 
 ```
 
-> *(If the seed is omitted, the tool automatically generates a random seed based on the current system time.)*
+> *(If the seed is omitted, the tool automatically generates a seed based on the current system time.)*
 
 ### Detailed Output Mode
 
@@ -53,11 +53,10 @@ Add the `-v` (`--verbose`) flag to display the exact parameters (seed, charset, 
 
 ```bash
 $ gacs my_secret_seed -v
-Seed: my_secret_seed
-Salt: (none)
-Length: 32
-Character set: ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
--> pgHuENPMgR...
+pgHuENPMgR...
+ [SEED] my_secret_seed
+ [LENGTH] 32
+ [CHARSET] ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
 
 ```
 
@@ -77,7 +76,7 @@ $ gacs my_secret_seed -l 16 -c us
 
 ### Using a File as a Salt
 
-Use `-s` to incorporate a local file (such as a secret image or document) as an additional cryptographic salt.
+Use `-s` to incorporate a local file (such as a secret image or document) as an additional input.
 
 ```bash
 # Using an image file as a salt
@@ -102,13 +101,13 @@ Arguments:
   [SEED]  Base string to generate the characters from
 
 Options:
-  -c, --charset <STYLE>  Character set style to use (64, us, ps) [default: ps]
-  -s, --salt <FILE>      Optional file to use as an additional cryptographic salt
-  -l, --length <LENGTH>  Length of the generated characters [default: 32]
-  -r, --rule <RULE>      Replace specific characters in the charset (Format: 'target:replacement')
-  -v, --verbose          Print detailed configuration along with the generated characters
-  -h, --help             Print help
-  -V, --version          Print version
+  -c, --charset <CHARSET>   Character set to use (64,us,ps) [default: ps]
+  -s, --salt <FILE>         Optional file to use as an additional cryptographic salt
+  -l, --length <LENGTH>     Length of the generated characters [default: 32]
+  -r, --rule <RULE>         Replace specific characters in the charset (Format: 'target:replacement')
+  -v, --verbose             Print detailed configuration along with the generated characters
+  -h, --help                Print help
+  -V, --version             Print version
 
 ```
 

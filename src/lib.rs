@@ -1,6 +1,7 @@
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{fs::File, io::Read, path::Path};
 
 use sha2::{Digest, Sha512, digest::Output};
+use thiserror::Error;
 
 const TBL_SIZE: usize = 1 << 6;
 const BASE_TBLS: [[u8; TBL_SIZE]; 3] = [
@@ -17,49 +18,29 @@ const FILE_BUFFER_SIZE: usize = 8_192;
 const HASH_SIZE: usize = std::mem::size_of::<Output<Sha512>>();
 const RULE_DELIM: char = ':';
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum GacsError {
+    #[error("invalid rule: expected 'target:replacement' (e.g., 'Zz9:^&*')")]
     InvalidRuleFmt,
+
+    #[error("invalid rule: contains duplicates or characters not found in the charset")]
     InvalidRuleChars,
-    LenExceed(usize, usize),
+
+    #[error("requested length ({0}) exceeds the maximum length ({1})")]
+    LenExceeded(usize, usize),
+
+    #[error("invalid source data: length is too short")]
     InvalidSrc,
+
+    #[error("failed to slice source: {0}")]
     SliceSrc(std::array::TryFromSliceError),
+
+    #[error("file operation failed: {0}")]
     File(std::io::Error),
-    ParseOutput(std::string::FromUtf8Error),
-}
 
-impl std::fmt::Display for GacsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GacsError::InvalidRuleFmt => {
-                write!(
-                    f,
-                    "invalid rule: expected 'target:replacement' (e.g., 'Zz9:^&*')"
-                )
-            }
-            GacsError::InvalidRuleChars => write!(
-                f,
-                "invalid rule: contains duplicates or characters not found in the charset"
-            ),
-            GacsError::LenExceed(req, max) => {
-                write!(
-                    f,
-                    "requested length ({req}) exceeds the maximum length ({max})"
-                )
-            }
-            GacsError::InvalidSrc => write!(f, "invalid source data: length is too short"),
-            GacsError::SliceSrc(e) => write!(f, "failed to slice source: {e}"),
-            GacsError::ParseOutput(e) => {
-                write!(f, "failed to parse output: {e}")
-            }
-            GacsError::File(e) => {
-                write!(f, "file operation failed: {e}")
-            }
-        }
-    }
+    #[error("file operation failed: {0}")]
+    InvalidOutput(#[from] std::string::FromUtf8Error),
 }
-
-impl std::error::Error for GacsError {}
 
 pub enum Charset {
     Base64,
@@ -82,7 +63,7 @@ pub struct Gacs {
 }
 
 impl Gacs {
-    pub fn build(charset: &Charset, rule: Option<&String>) -> Result<Self, GacsError> {
+    pub fn build(charset: &Charset, rule: Option<&str>) -> Result<Self, GacsError> {
         let tbl: [u8; TBL_SIZE] = match rule {
             Some(r) => {
                 let (d, e) = r.split_once(RULE_DELIM).ok_or(GacsError::InvalidRuleFmt)?;
@@ -112,7 +93,7 @@ impl Gacs {
     pub fn generate(
         &self,
         seed: &str,
-        salt: Option<&PathBuf>,
+        salt: Option<&Path>,
         len: usize,
     ) -> Result<String, GacsError> {
         let src: [u8; HASH_SIZE] = self.hash(seed, salt)?;
@@ -120,16 +101,13 @@ impl Gacs {
             .split_at_checked(std::mem::size_of::<u32>())
             .ok_or(GacsError::InvalidSrc)?;
 
-        let s_tbl: [u8; TBL_SIZE] = self.shuffle(u32::from_be_bytes(
-            s_src.try_into().map_err(GacsError::SliceSrc)?,
-        ));
+        let shuffler: u32 = u32::from_be_bytes(s_src.try_into().map_err(GacsError::SliceSrc)?);
+        let s_tbl: [u8; TBL_SIZE] = self.shuffle(shuffler);
 
-        let mapped = self.map(&s_tbl, c_src, len)?;
-
-        String::from_utf8(mapped).map_err(GacsError::ParseOutput)
+        self.map(&s_tbl, c_src, len)
     }
 
-    fn hash(&self, seed: &str, salt: Option<&PathBuf>) -> Result<[u8; HASH_SIZE], GacsError> {
+    fn hash(&self, seed: &str, salt: Option<&Path>) -> Result<[u8; HASH_SIZE], GacsError> {
         let mut hasher: Sha512 = Sha512::new();
 
         hasher.update(seed.as_bytes());
@@ -149,22 +127,22 @@ impl Gacs {
         Ok(hasher.finalize().into())
     }
 
-    fn shuffle(&self, scrambler: u32) -> [u8; TBL_SIZE] {
-        let mut scrambled: [u8; TBL_SIZE] = self.tbl;
-        let mut s_rand: u64 = scrambler as u64;
+    fn shuffle(&self, shuffler: u32) -> [u8; TBL_SIZE] {
+        let mut shuffled: [u8; TBL_SIZE] = self.tbl;
+        let mut s_rand: u64 = shuffler as u64;
 
-        for i in 0..scrambled.len() {
+        for i in 0..shuffled.len() {
             s_rand = (A * s_rand + C) % M;
-            scrambled.swap(i, (s_rand as usize) % (i + 1));
+            shuffled.swap(i, (s_rand as usize) % (i + 1));
         }
 
-        scrambled
+        shuffled
     }
 
-    pub fn map(&self, tbl: &[u8; TBL_SIZE], src: &[u8], len: usize) -> Result<Vec<u8>, GacsError> {
+    fn map(&self, tbl: &[u8; TBL_SIZE], src: &[u8], len: usize) -> Result<String, GacsError> {
         let map_len: usize = (src.len() * 4).div_ceil(3);
         if len > map_len {
-            return Err(GacsError::LenExceed(len, map_len));
+            return Err(GacsError::LenExceeded(len, map_len));
         }
 
         let mut mapped: Vec<u8> = Vec::with_capacity(map_len);
@@ -190,6 +168,6 @@ impl Gacs {
         }
         mapped.truncate(len);
 
-        Ok(mapped)
+        String::from_utf8(mapped).map_err(GacsError::InvalidOutput)
     }
 }

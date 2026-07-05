@@ -3,22 +3,43 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use gacs::{Charset, Gacs, GacsError};
 
-const OP_CHARSET_64: &str = "64";
-const OP_CHARSET_US: &str = "us";
-const OP_CHARSET_PS: &str = "ps";
+const CLI_CHARSET_64: &str = "64";
+const CLI_CHARSET_US: &str = "us";
+const CLI_CHARSET_PS: &str = "ps";
 
 const DEFAULT_CHARSET: Charset = Charset::PasswordSafe;
 const DEFAULT_LENGTH: usize = 32;
+const GEN_SEED_LENGTH: usize = 80;
 
 #[derive(Error, Debug)]
 enum CliError {
-    #[error("CLI error: {0}")]
-    Cli(String),
+    #[error("Missing value for --charset")]
+    MissingCharset,
+
+    #[error("Invalid charset '{0}'. Expected '{1}'")]
+    InvalidCharset(String, String),
+
+    #[error("Missing value for --salt")]
+    MissingSalt,
+
+    #[error("Missing value for --length")]
+    MissingLength,
+
+    #[error("Invalid length: '{0}' is not a valid number")]
+    InvalidLength(String),
+
+    #[error("Missing value for --rule")]
+    MissingRule,
+
+    #[error("Unknown option '{0}'")]
+    UnknownOpt(String),
+
+    #[error("Unexpected positional argument '{0}'")]
+    UnexpectedPos(String),
 
     #[error("Gacs error: {0}")]
     Gacs(#[from] GacsError),
@@ -58,38 +79,19 @@ impl Args {
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "-c" | "--charset" => {
-                    let val: String = args.next().ok_or_else(|| {
-                        CliError::Cli(String::from("Missing value for --charset"))
-                    })?;
-                    charset = match val.as_str() {
-                        OP_CHARSET_64 => Charset::Base64,
-                        OP_CHARSET_US => Charset::UrlSafe,
-                        OP_CHARSET_PS => Charset::PasswordSafe,
-                        _ => {
-                            return Err(CliError::Cli(format!(
-                                "Invalid charset '{val}'. Expected '{OP_CHARSET_64}', '{OP_CHARSET_US}', or '{OP_CHARSET_PS}'"
-                            )));
-                        }
-                    };
+                    let val: String = args.next().ok_or(CliError::MissingCharset)?;
+                    charset = get_charset(&val)?;
                 }
                 "-s" | "--salt" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| CliError::Cli(String::from("Missing value for --salt")))?;
-                    salt = Some(PathBuf::from(val));
+                    let val: String = args.next().ok_or(CliError::MissingSalt)?;
+                    salt = Some(PathBuf::from(&val));
                 }
                 "-l" | "--length" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| CliError::Cli(String::from("Missing value for --length")))?;
-                    length = val.parse::<usize>().map_err(|_| {
-                        CliError::Cli(format!("Invalid length: '{val}' is not a valid number"))
-                    })?;
+                    let val: String = args.next().ok_or(CliError::MissingLength)?;
+                    length = val.parse().map_err(|_| CliError::InvalidLength(val))?;
                 }
                 "-r" | "--rule" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| CliError::Cli(String::from("Missing value for --rule")))?;
+                    let val: String = args.next().ok_or(CliError::MissingRule)?;
                     rule = Some(val);
                 }
                 "-v" | "--verbose" => {
@@ -104,15 +106,13 @@ impl Args {
                     std::process::exit(0);
                 }
                 _ if arg.starts_with('-') => {
-                    return Err(CliError::Cli(format!("Unknown option '{arg}'")));
+                    return Err(CliError::UnknownOpt(arg));
                 }
                 _ => {
                     if seed.is_none() {
                         seed = Some(arg);
                     } else {
-                        return Err(CliError::Cli(format!(
-                            "Unexpected positional argument '{arg}'"
-                        )));
+                        return Err(CliError::UnexpectedPos(arg));
                     }
                 }
             }
@@ -136,64 +136,79 @@ fn print_help() {
     println!("  [SEED]  Base string to generate the characters from\n");
     println!("Options:");
     println!(
-        "  -c, --charset <STYLE>  Character set style to use (64, us, ps) [default: {}]",
-        get_op_charset(&DEFAULT_CHARSET)
+        "  -c, --charset <CHARSET>   Character set to use ({}, {}, {}) [default: {}]",
+        CLI_CHARSET_64,
+        CLI_CHARSET_US,
+        CLI_CHARSET_PS,
+        get_cli_charset(&DEFAULT_CHARSET)
     );
-    println!("  -s, --salt <FILE>      Optional file to use as an additional cryptographic salt");
     println!(
-        "  -l, --length <LENGTH>  Length of the generated characters [default: {}]",
+        "  -s, --salt <FILE>         Optional file to use as an additional cryptographic salt"
+    );
+    println!(
+        "  -l, --length <LENGTH>     Length of the generated characters [default: {}]",
         DEFAULT_LENGTH
     );
     println!(
-        "  -r, --rule <RULE>      Replace specific characters in the charset (Format: 'target:replacement')"
+        "  -r, --rule <RULE>         Replace specific characters in the charset (Format: 'target:replacement')"
     );
     println!(
-        "  -v, --verbose          Print detailed configuration along with the generated characters"
+        "  -v, --verbose             Print detailed configuration along with the generated characters"
     );
-    println!("  -h, --help             Print help");
-    println!("  -V, --version          Print version");
+    println!("  -h, --help                Print help");
+    println!("  -V, --version             Print version");
 }
 
-fn get_op_charset(charset: &Charset) -> &str {
-    match charset {
-        Charset::Base64 => OP_CHARSET_64,
-        Charset::UrlSafe => OP_CHARSET_US,
-        Charset::PasswordSafe => OP_CHARSET_PS,
+fn get_charset(cli_charset: &str) -> Result<Charset, CliError> {
+    match cli_charset {
+        CLI_CHARSET_64 => Ok(Charset::Base64),
+        CLI_CHARSET_US => Ok(Charset::UrlSafe),
+        CLI_CHARSET_PS => Ok(Charset::PasswordSafe),
+        _ => Err(CliError::InvalidCharset(
+            String::from(cli_charset),
+            format!("{CLI_CHARSET_64}, {CLI_CHARSET_US}, {CLI_CHARSET_PS}"),
+        )),
     }
 }
 
-fn gen_seed() -> Result<String, CliError> {
-    Ok(hex::encode(Sha256::digest(
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)?
-            .as_nanos()
-            .to_be_bytes(),
-    )))
+fn get_cli_charset(charset: &Charset) -> &str {
+    match charset {
+        Charset::Base64 => CLI_CHARSET_64,
+        Charset::UrlSafe => CLI_CHARSET_US,
+        Charset::PasswordSafe => CLI_CHARSET_PS,
+    }
+}
+
+fn gen_seed(charset: &Charset) -> Result<String, CliError> {
+    let seed_base: String = SystemTime::now()
+        .duration_since(UNIX_EPOCH)?
+        .as_nanos()
+        .to_string()
+        + &std::process::id().to_string();
+
+    Ok(Gacs::build(charset, None)?.generate(&seed_base, None, GEN_SEED_LENGTH)?)
 }
 
 fn run() -> Result<(), CliError> {
     let args: Args = Args::parse()?;
 
-    let gacs: Gacs = Gacs::build(&args.charset, args.rule.as_ref())?;
+    let gacs: Gacs = Gacs::build(&args.charset, args.rule.as_deref())?;
 
     let seed: String = match args.seed {
         Some(s) => s,
-        None => gen_seed()?,
+        None => gen_seed(&args.charset)?,
     };
-    let generated: String = gacs.generate(&seed, args.salt.as_ref(), args.length)?;
 
+    let generated: String = gacs.generate(&seed, args.salt.as_deref(), args.length)?;
+
+    println!("{}", generated);
     if args.verbose {
-        println!("Seed: {}", seed);
+        println!(" [SEED] {}", seed);
         if let Some(path) = args.salt {
-            println!("Salt: {}", path.display());
-        } else {
-            println!("Salt: (none)");
+            println!(" [SALT] {}", path.display());
         }
-        println!("Length: {}", args.length);
-        println!("Character set: {}", std::str::from_utf8(gacs.tbl())?);
-        println!("-> {}", generated);
-    } else {
-        println!("{}", generated);
+        println!(" [LENGTH] {}", args.length);
+        println!(" [CHARSET] {}", std::str::from_utf8(gacs.tbl())?);
     }
 
     Ok(())
