@@ -148,6 +148,7 @@ fn print_help() {
         "  -l, --length <LENGTH>     Length of the generated characters [default: {}]",
         DEFAULT_LENGTH
     );
+    println!("                            Setting this to 0 generates the maximum possible length");
     println!(
         "  -r, --rule <RULE>         Replace specific characters in the charset (Format: 'target:replacement')"
     );
@@ -202,12 +203,12 @@ fn run() -> Result<(), CliError> {
 
     println!("{}", generated);
     if args.verbose {
-        eprintln!(" [SEED] {}", seed);
+        eprintln!("  [SEED] {}", seed);
         if let Some(p) = args.salt {
-            eprintln!(" [SALT] {}", p.display());
+            eprintln!("  [SALT] {}", p.display());
         }
-        eprintln!(" [LENGTH] {}", args.length);
-        eprintln!(" [CHARSET] {}", std::str::from_utf8(gacs.tbl())?);
+        eprintln!("  [LENGTH] {}", args.length);
+        eprintln!("  [CHARSET] {}", std::str::from_utf8(gacs.tbl())?);
     }
 
     Ok(())

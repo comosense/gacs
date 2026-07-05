@@ -54,9 +54,9 @@ Add the `-v` (`--verbose`) flag to display the exact parameters (seed, charset, 
 ```bash
 $ gacs my_secret_seed -v
 pgHuENPMgR...
- [SEED] my_secret_seed
- [LENGTH] 32
- [CHARSET] ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
+  [SEED] my_secret_seed
+  [LENGTH] 32
+  [CHARSET] ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
 
 ```
 
@@ -104,6 +104,7 @@ Options:
   -c, --charset <CHARSET>   Character set to use (64, us, ps) [default: ps]
   -s, --salt <FILE>         Optional file to use as an additional cryptographic salt
   -l, --length <LENGTH>     Length of the generated characters [default: 32]
+                            Setting this to 0 generates the maximum possible length
   -r, --rule <RULE>         Replace specific characters in the charset (Format: 'target:replacement')
   -v, --verbose             Print detailed configuration along with the generated characters
   -h, --help                Print help
