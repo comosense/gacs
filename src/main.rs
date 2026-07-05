@@ -202,12 +202,12 @@ fn run() -> Result<(), CliError> {
 
     println!("{}", generated);
     if args.verbose {
-        println!(" [SEED] {}", seed);
+        eprintln!(" [SEED] {}", seed);
         if let Some(p) = args.salt {
-            println!(" [SALT] {}", p.display());
+            eprintln!(" [SALT] {}", p.display());
         }
-        println!(" [LENGTH] {}", args.length);
-        println!(" [CHARSET] {}", std::str::from_utf8(gacs.tbl())?);
+        eprintln!(" [LENGTH] {}", args.length);
+        eprintln!(" [CHARSET] {}", std::str::from_utf8(gacs.tbl())?);
     }
 
     Ok(())
