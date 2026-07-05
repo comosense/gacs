@@ -12,7 +12,7 @@ A deterministic ASCII character generator written in Rust.
   * `64`: BASE64
   * `us`: URL safe
   * `ps`: Password safe (removes visually confusing characters and adds symbols)
-* **Custom Replacement Rules**: Flexibly define rules to replace specific characters in the base set (e.g., replacing `O` and `0` with `@`).
+* **Custom Replacement Rules**: Flexibly define rules to replace specific characters in the base set (e.g., replacing `O` with `@`).
 * **Fast & Lightweight**: Achieves exceptionally high performance with minimal memory allocation, leveraging Rust's zero-cost abstractions.
 
 ## Installation
@@ -101,7 +101,7 @@ Arguments:
   [SEED]  Base string to generate the characters from
 
 Options:
-  -c, --charset <CHARSET>   Character set to use (64,us,ps) [default: ps]
+  -c, --charset <CHARSET>   Character set to use (64, us, ps) [default: ps]
   -s, --salt <FILE>         Optional file to use as an additional cryptographic salt
   -l, --length <LENGTH>     Length of the generated characters [default: 32]
   -r, --rule <RULE>         Replace specific characters in the charset (Format: 'target:replacement')
