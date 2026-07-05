@@ -27,7 +27,7 @@ pub enum GacsError {
     InvalidRuleChars,
 
     #[error("requested length ({0}) exceeds the maximum length ({1})")]
-    LenExceeded(usize, usize),
+    LengthExceeded(usize, usize),
 
     #[error("invalid source data: length is too short")]
     InvalidSrc,
@@ -66,8 +66,8 @@ impl Gacs {
     pub fn build(charset: &Charset, rule: Option<&str>) -> Result<Self, GacsError> {
         let tbl: [u8; TBL_SIZE] = match rule {
             Some(r) => {
-                let (d, e) = r.split_once(RULE_DELIM).ok_or(GacsError::InvalidRuleFmt)?;
-                if (!d.is_ascii()) || (!e.is_ascii()) || (d.len() != e.len()) {
+                let (d, a) = r.split_once(RULE_DELIM).ok_or(GacsError::InvalidRuleFmt)?;
+                if (!d.is_ascii()) || (!a.is_ascii()) || (d.len() != a.len()) {
                     return Err(GacsError::InvalidRuleFmt);
                 }
                 charset
@@ -75,7 +75,7 @@ impl Gacs {
                     .iter()
                     .copied()
                     .filter(|&c| !d.as_bytes().contains(&c))
-                    .chain(e.bytes())
+                    .chain(a.bytes())
                     .collect::<Vec<u8>>()
                     .try_into()
                     .map_err(|_| GacsError::InvalidRuleChars)?
@@ -94,7 +94,7 @@ impl Gacs {
         &self,
         seed: &str,
         salt: Option<&Path>,
-        len: usize,
+        length: usize,
     ) -> Result<String, GacsError> {
         let src: [u8; HASH_SIZE] = self.hash(seed, salt)?;
         let (s_src, c_src) = src
@@ -104,7 +104,7 @@ impl Gacs {
         let shuffler: u32 = u32::from_be_bytes(s_src.try_into().map_err(GacsError::SliceSrc)?);
         let s_tbl: [u8; TBL_SIZE] = self.shuffle(shuffler);
 
-        self.map(&s_tbl, c_src, len)
+        self.map(&s_tbl, c_src, length)
     }
 
     fn hash(&self, seed: &str, salt: Option<&Path>) -> Result<[u8; HASH_SIZE], GacsError> {
@@ -139,11 +139,15 @@ impl Gacs {
         shuffled
     }
 
-    fn map(&self, tbl: &[u8; TBL_SIZE], src: &[u8], len: usize) -> Result<String, GacsError> {
+    fn map(&self, tbl: &[u8; TBL_SIZE], src: &[u8], length: usize) -> Result<String, GacsError> {
         let map_len: usize = (src.len() * 4).div_ceil(3);
-        if len > map_len {
-            return Err(GacsError::LenExceeded(len, map_len));
-        }
+        let len: usize = if length > map_len {
+            return Err(GacsError::LengthExceeded(length, map_len));
+        } else if length == 0 {
+            map_len
+        } else {
+            length
+        };
 
         let mut mapped: Vec<u8> = Vec::with_capacity(map_len);
         for chunk in src.chunks(3) {

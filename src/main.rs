@@ -13,7 +13,6 @@ const CLI_CHARSET_PS: &str = "ps";
 
 const DEFAULT_CHARSET: Charset = Charset::PasswordSafe;
 const DEFAULT_LENGTH: usize = 32;
-const GEN_SEED_LENGTH: usize = 80;
 
 #[derive(Error, Debug)]
 enum CliError {
@@ -186,7 +185,7 @@ fn gen_seed(charset: &Charset) -> Result<String, CliError> {
         .to_string()
         + &std::process::id().to_string();
 
-    Ok(Gacs::build(charset, None)?.generate(&seed_base, None, GEN_SEED_LENGTH)?)
+    Ok(Gacs::build(charset, None)?.generate(&seed_base, None, 0)?)
 }
 
 fn run() -> Result<(), CliError> {
@@ -204,8 +203,8 @@ fn run() -> Result<(), CliError> {
     println!("{}", generated);
     if args.verbose {
         println!(" [SEED] {}", seed);
-        if let Some(path) = args.salt {
-            println!(" [SALT] {}", path.display());
+        if let Some(p) = args.salt {
+            println!(" [SALT] {}", p.display());
         }
         println!(" [LENGTH] {}", args.length);
         println!(" [CHARSET] {}", std::str::from_utf8(gacs.tbl())?);
