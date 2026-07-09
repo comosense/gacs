@@ -13,7 +13,6 @@ A deterministic ASCII character generator written in Rust.
   * `us`: URL-Safe characters.
   * `ps`: Password-Safe characters (excludes visually ambiguous characters like `O`, `0`, `l`, `1` and introduces symbols).
 * **Custom Character Modification Rules**: Allows you to temporarily remove specific characters from the base set and append new ones to meet specific string policies.
-* **Zero-Cost Performance**: Leverages Rust's efficiency to ensure exceptionally fast execution and zero unnecessary allocations.
 
 ## Installation
 
