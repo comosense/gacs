@@ -17,6 +17,7 @@ const M: u64 = 1 << 32; // [alt1] 1 << 31, [alt2] 1 << 31, [alt3] 1 << 48
 const FILE_BUFFER_SIZE: usize = 8_192;
 const SRC_SIZE: usize = std::mem::size_of::<Output<Sha512>>();
 const RULE_DELIM: char = ':';
+const SALT_DELIM: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
 
 #[derive(Error, Debug)]
 pub enum GacsError {
@@ -113,6 +114,8 @@ impl Gacs {
         hasher.update(seed.as_bytes());
 
         if let Some(p) = salt {
+            hasher.update(SALT_DELIM);
+
             let mut file: File = File::open(p).map_err(GacsError::File)?;
             let mut buf: [u8; FILE_BUFFER_SIZE] = [0u8; FILE_BUFFER_SIZE];
             loop {

@@ -155,7 +155,8 @@ impl Args {
                     .as_nanos()
                     .to_string()
                     + &self.auto_seed;
-                self.auto_seed = Gacs::build(&self.charset, None)?.generate(&auto_base, None, 0)?;
+                self.auto_seed =
+                    Gacs::build(&Charset::UrlSafe, Some("-:@"))?.generate(&auto_base, None, 0)?;
                 Ok(Seed {
                     seed: self.auto_seed.clone(),
                     from: SeedFrom::Auto,
