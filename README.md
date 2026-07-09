@@ -2,110 +2,124 @@
 
 A deterministic ASCII character generator written in Rust.
 
-`gacs` is a fast CLI tool that generates reproducible ASCII characters based on a given seed string, an optional salt (file), and specific character sets.
+`gacs` is a CLI tool that generates reproducible ASCII strings (such as strong passwords or secret tokens) based on a seed string, an optional file-based salt, and customizable character sets.
 
 ## Features
 
-* **Deterministic Generation**: Generate the exact same ASCII characters (such as a strong password) every time, as long as you provide the same seed and conditions.
-* **File-based Salting**: Use any local file (images, documents, etc.) as a cryptographic salt. The tool streams large files efficiently without consuming massive amounts of memory.
-* **Flexible Character Sets**: Choose from 3 built-in base character sets depending on your needs:
-  * `64`: BASE64
-  * `us`: URL safe
-  * `ps`: Password safe (removes visually confusing characters and adds symbols)
-* **Custom Replacement Rules**: Flexibly define rules to replace specific characters in the base set (e.g., replacing `O` with `@`).
-* **Fast & Lightweight**: Achieves exceptionally high performance with minimal memory allocation, leveraging Rust's zero-cost abstractions.
+* **Deterministic Generation**: Generates the exact same character sequence every time, provided the same seed and parameters are used.
+* **File-Based Salting**: Seamlessly incorporates any local file (images, documents, audio) as a salt. Large files are streamed efficiently with minimal memory overhead.
+* **Flexible Pre-defined Character Sets**: Offers 3 built-in base sets optimized for different use cases:
+  * `64`: Standard BASE64 set.
+  * `us`: URL-Safe characters.
+  * `ps`: Password-Safe characters (excludes visually ambiguous characters like `O`, `0`, `l`, `1` and introduces symbols).
+* **Custom Character Modification Rules**: Allows you to temporarily remove specific characters from the base set and append new ones to meet specific string policies.
+* **Zero-Cost Performance**: Leverages Rust's efficiency to ensure exceptionally fast execution and zero unnecessary allocations.
 
 ## Installation
 
-You will need a Rust build environment (`cargo`). Clone the repository and build it locally.
+Ensure you have a Rust development environment installed (`cargo`). Clone the repository and build the binary:
 
 ```bash
 git clone https://github.com/comosense/gacs.git
 cd gacs
 
-# Build with optimizations
+# Build with release optimizations
 cargo build --release
 
-# The compiled binary will be located in the target/release/ directory
+# The compiled binary will be located at:
 ./target/release/gacs --help
 
 ```
 
-> *(If you want to minimize the compiled binary size, it is highly recommended to add LTO (Link Time Optimization) and strip settings to your `Cargo.toml` before building.)*
+> *To minimize the final binary size, it is highly recommended to enable Link Time Optimization (LTO) and strip symbols in your `Cargo.toml`.*
 
 ## Usage
 
 ### Basic Generation
 
-Pass a seed string to generate characters using the default settings (32 characters, password-safe charset).
+Provide a seed string to generate a deterministic 32-character string using the default Password-Safe (`ps`) character set.
 
 ```bash
 $ gacs my_secret_seed
-pgHuENPMgR...
+@GP5m7ijz@...
 
 ```
 
-> *(If the seed is omitted, the tool automatically generates a seed based on the current system time.)*
+> *If the seed argument is omitted, a random seed will be automatically generated based on the system time.*
 
-### Detailed Output Mode
+### Detailed Output (Verbose Mode)
 
-Add the `-v` (`--verbose`) flag to display the exact parameters (seed, charset, etc.) used during generation alongside the final characters.
+Use the `-v` (`--verbose`) flag to display the generated output alongside the exact parameters and the finalized character table used.
 
 ```bash
 $ gacs my_secret_seed -v
-pgHuENPMgR...
+@GP5m7ijz@...
   [SEED] my_secret_seed
   [LENGTH] 32
   [CHARSET] ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
 
 ```
 
-### Changing Length and Charset
+### Adjusting Length and Character Sets
 
-Use `-l` to specify the length and `-c` to choose the character set (`64`, `us`, `ps`).
+Modify the output length with `-l` (`--length`) and switch the character set via `-c` (`--charset`) (64, us, ps).
 
-* [`64`: BASE64] ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
-* [`us`: URL safe] ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_
-* [`ps`: Password safe] ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
+* `64` (BASE64): ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
+* `us` (URL-Safe): ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_
+* `ps` (Password-Safe): ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
 
 ```bash
-# Generate a 16-character URL-safe string
+# Generate a 16-character URL-Safe string
 $ gacs my_secret_seed -l 16 -c us
+OGP5m7ijzO...
 
 ```
 
-### Using a File as a Salt
+### Custom Character Modification Rules
 
-Use `-s` to incorporate a local file (such as a secret image or document) as an additional input.
+Modify the character set by removing specific characters and appending new ones using the `-r` (`--rule`) flag. Format: `'characters_to_remove:characters_to_add'`.
 
 ```bash
-# Using an image file as a salt
+# Remove 'Z', 'z', and '9' from the charset, and append '^', '&', and '*'
+$ gacs my_secret_seed -r 'Zz9:^&*'
+@GP7n-jk%@...
+
+```
+
+### File Salting
+
+Use the `-s` (`--salt`) option to introduce a local file as an additional layer of entropy. The output will only match if both the seed and the file contents are identical.
+
+```bash
+# Salt the generation with a local image file
 $ gacs my_secret_seed -s path/to/secret_image.jpg
 
 ```
 
-### Applying Custom Replacement Rules
+### Bulk Generation
 
-Use `-r` to replace specific characters in the chosen charset. The format is `target_characters:replacement_characters`.
+Generate multiple independent strings at once using the `-n` (`--number`) flag. Note that when generating multiple strings, individual seeds are automatically managed.
 
 ```bash
-# Replace 'Z', 'z', and '9' with '^', '&', and '*'
-$ gacs my_secret_seed -r 'Zz9:^&*'
+# Generate 5 strings simultaneously
+$ gacs -n 5
 
 ```
 
-## Options
+## Command Line Options
 
 ```text
 Arguments:
-  [SEED]  Base string to generate the characters from
+  [SEED]  Base string to generate the characters from (generated automatically if omitted)
 
 Options:
-  -c, --charset <CHARSET>   Character set to use (64, us, ps) [default: ps]
   -s, --salt <FILE>         Optional file to use as an additional cryptographic salt
   -l, --length <LENGTH>     Length of the generated characters [default: 32]
                             Setting this to 0 generates the maximum possible length
-  -r, --rule <RULE>         Replace specific characters in the charset (Format: 'target:replacement')
+  -c, --charset <CHARSET>   Character set to use (64, us, ps) [default: ps]
+  -r, --rule <RULE>         Modify the charset by removing and appending characters (Format: 'remove:add')
+  -n, --number <NUMBER>     Number of strings to generate
+                            Setting this, seeds are auto-generated; conflicts with [SEED]
   -v, --verbose             Print detailed configuration along with the generated characters
   -h, --help                Print help
   -V, --version             Print version

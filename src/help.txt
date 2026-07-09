@@ -1,0 +1,18 @@
+A deterministic ASCII character generator.
+
+Usage: {pkg_name} [OPTIONS] [SEED]
+
+Arguments:
+  [SEED]  Base string to generate the characters from (generated automatically if omitted)
+
+Options:
+  -s, --salt <FILE>         Optional file to use as an additional cryptographic salt
+  -l, --length <LENGTH>     Length of the generated characters [default: {d_len}]
+                            Setting this to 0 generates the maximum possible length
+  -c, --charset <CHARSET>   Character set to use ({cs_64}, {cs_us}, {cs_ps}) [default: {d_cs}]
+  -r, --rule <RULE>         Modify the charset by removing and appending characters (Format: 'remove:add')
+  -n, --number <NUMBER>     Number of strings to generate
+                            Setting this, seeds are auto-generated; conflicts with [SEED]
+  -v, --verbose             Print detailed configuration along with the generated characters
+  -h, --help                Print help
+  -V, --version             Print version
