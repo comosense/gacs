@@ -3,14 +3,11 @@ name: Rust Nightly Release
 on:
   push:
     branches: [ "main" ]
-    tags: [ "[0-9]*" ] # 0.1.0 や 1.0.0 などの数字始まりのタグプッシュで起動
+    tags: [ "[0-9]*" ]
   pull_request:
     branches: [ "main" ]
 
 jobs:
-  # -------------------------------------------------------------
-  # 1. ビルドジョブ (CI & リリース用バイナリ生成)
-  # -------------------------------------------------------------
   build:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -30,7 +27,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install Rust Nightly
       uses: dtolnay/rust-toolchain@nightly
@@ -62,18 +59,14 @@ jobs:
         mv ${{ matrix.bin }} ../../../${{ matrix.bin }}-${{ matrix.target }}
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: binary-${{ matrix.target }}
         path: ${{ matrix.bin }}-${{ matrix.target }}
 
-  # -------------------------------------------------------------
-  # 2. リリース公開ジョブ (タグプッシュ時のみ実行)
-  # -------------------------------------------------------------
   release:
     name: Create GitHub Release
     needs: build
-    # トリガーがタグプッシュ（github.ref_type == 'tag'）の場合のみ実行
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
@@ -81,10 +74,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         pattern: binary-*
         merge-multiple: true
