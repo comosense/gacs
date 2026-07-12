@@ -3,7 +3,7 @@ name: Rust Nightly Release
 on:
   push:
     branches: [ "main" ]
-    tags: [ "[0-9]*" ]
+    tags: [ "v*" ] # v0.6.0 などのタグにマッチ
   pull_request:
     branches: [ "main" ]
 
@@ -12,7 +12,7 @@ jobs:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     permissions:
-      contents: write
+      contents: read # CodeQLのwarning対策。ソースコードの取得のみなのでreadで十分です
     strategy:
       fail-fast: false
       matrix:
@@ -20,12 +20,15 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             bin: gacs.exe
+            out_name: gacs-x86_64-pc-windows-msvc.exe # 拡張子を維持
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             bin: gacs
+            out_name: gacs-x86_64-unknown-linux-gnu
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             bin: gacs
+            out_name: gacs-aarch64-unknown-linux-musl
 
     steps:
     - name: Checkout code
@@ -58,13 +61,13 @@ jobs:
       shell: bash
       run: |
         cd target/${{ matrix.target }}/release/
-        mv ${{ matrix.bin }} ../../../${{ matrix.bin }}-${{ matrix.target }}
+        mv ${{ matrix.bin }} ../../../${{ matrix.out_name }}
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v7
       with:
         name: binary-${{ matrix.target }}
-        path: ${{ matrix.bin }}-${{ matrix.target }}
+        path: ${{ matrix.out_name }}
 
   release:
     name: Create GitHub Release
@@ -72,7 +75,7 @@ jobs:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # リリース作成とアセットのアップロードに必要
 
     steps:
     - name: Checkout code
@@ -88,7 +91,7 @@ jobs:
       uses: softprops/action-gh-release@v3
       with:
         files: |
-          gacs.exe-x86_64-pc-windows-msvc
+          gacs-x86_64-pc-windows-msvc.exe
           gacs-x86_64-unknown-linux-gnu
           gacs-aarch64-unknown-linux-musl
         generate_release_notes: true
