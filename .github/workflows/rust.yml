@@ -27,7 +27,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Rust Nightly
       uses: dtolnay/rust-toolchain@nightly
@@ -59,7 +59,7 @@ jobs:
         mv ${{ matrix.bin }} ../../../${{ matrix.bin }}-${{ matrix.target }}
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: binary-${{ matrix.target }}
         path: ${{ matrix.bin }}-${{ matrix.target }}
