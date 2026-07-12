@@ -3,7 +3,7 @@ name: Rust Nightly Release
 on:
   push:
     branches: [ "main" ]
-    tags: [ "v*" ] # v0.6.0 などのタグにマッチ
+    tags: [ "[0-9]*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -12,7 +12,7 @@ jobs:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     permissions:
-      contents: read # CodeQLのwarning対策。ソースコードの取得のみなのでreadで十分です
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -20,15 +20,12 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             bin: gacs.exe
-            out_name: gacs-x86_64-pc-windows-msvc.exe # 拡張子を維持
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             bin: gacs
-            out_name: gacs-x86_64-unknown-linux-gnu
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             bin: gacs
-            out_name: gacs-aarch64-unknown-linux-musl
 
     steps:
     - name: Checkout code
@@ -57,17 +54,24 @@ jobs:
       run: |
         cargo build -Z build-std=std,panic_abort -Z build-std-features="optimize_for_size" --release --target ${{ matrix.target }}
 
-    - name: Prepare Artifact
+    - name: Prepare Artifact (Archive)
       shell: bash
       run: |
         cd target/${{ matrix.target }}/release/
-        mv ${{ matrix.bin }} ../../../${{ matrix.out_name }}
+
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          7z a ../../../gacs-${{ matrix.target }}.zip ${{ matrix.bin }}
+          echo "ARCHIVE_NAME=gacs-${{ matrix.target }}.zip" >> $GITHUB_ENV
+        else
+          tar -czvf ../../../gacs-${{ matrix.target }}.tar.gz ${{ matrix.bin }}
+          echo "ARCHIVE_NAME=gacs-${{ matrix.target }}.tar.gz" >> $GITHUB_ENV
+        fi
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v7
       with:
         name: binary-${{ matrix.target }}
-        path: ${{ matrix.out_name }}
+        path: ${{ env.ARCHIVE_NAME }}
 
   release:
     name: Create GitHub Release
@@ -75,7 +79,7 @@ jobs:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # リリース作成とアセットのアップロードに必要
+      contents: write
 
     steps:
     - name: Checkout code
@@ -91,7 +95,6 @@ jobs:
       uses: softprops/action-gh-release@v3
       with:
         files: |
-          gacs-x86_64-pc-windows-msvc.exe
-          gacs-x86_64-unknown-linux-gnu
-          gacs-aarch64-unknown-linux-musl
+          gacs-*.zip
+          gacs-*.tar.gz
         generate_release_notes: true
