@@ -11,6 +11,8 @@ jobs:
   build:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +29,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Install Rust Nightly
       uses: dtolnay/rust-toolchain@nightly
@@ -59,7 +61,7 @@ jobs:
         mv ${{ matrix.bin }} ../../../${{ matrix.bin }}-${{ matrix.target }}
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: binary-${{ matrix.target }}
         path: ${{ matrix.bin }}-${{ matrix.target }}
@@ -74,16 +76,16 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v8
       with:
         pattern: binary-*
         merge-multiple: true
 
     - name: Release to GitHub
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         files: |
           gacs.exe-x86_64-pc-windows-msvc
