@@ -51,6 +51,8 @@ jobs:
         key: ${{ matrix.target }}
 
     - name: Run Build-Std
+      env:
+        RUSTFLAGS: "-Zunstable-options -Cpanic=immediate-abort"
       run: |
         cargo build -Z build-std=std,panic_abort -Z build-std-features="optimize_for_size" --release --target ${{ matrix.target }}
 
