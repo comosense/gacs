@@ -9,9 +9,10 @@ A deterministic ASCII character generator written in Rust.
 * **Deterministic Generation**: Generates the exact same character sequence every time, provided the same seed and parameters are used.
 * **File-Based Salting**: Seamlessly incorporates any local file (images, documents, audio) as a salt. Large files are streamed efficiently with minimal memory overhead.
 * **Flexible Pre-defined Character Sets**: Offers 3 built-in base sets optimized for different use cases:
-  * `64`: Standard BASE64 set.
-  * `us`: URL-Safe characters.
-  * `ps`: Password-Safe characters (excludes visually ambiguous characters like `O`, `0`, `l`, `1` and introduces symbols).
+  * Standard BASE64 set.
+  * URL-Safe characters.
+  * Password-Safe characters (excludes visually ambiguous characters like `O`, `0`, `l`, `1` and introduces symbols).
+  * Shell-Safe characters (includes only alphanumeric characters, `.`, and `_` to avoid shell-specific quotation issues).
 * **Custom Character Modification Rules**: Allows you to temporarily remove specific characters from the base set and append new ones to meet specific string policies.
 
 ## Installation
@@ -61,11 +62,12 @@ $ gacs my_secret_seed -v
 
 ### Adjusting Length and Character Sets
 
-Modify the output length with `-l` (`--length`) and switch the character set via `-c` (`--charset`) (64, us, ps).
+Modify the output length with `-l` (`--length`) and switch the character set via `-c` (`--charset`).
 
 * `64` (BASE64): ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
 * `us` (URL-Safe): ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_
 * `ps` (Password-Safe): ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_
+* `ss` (Shell-Safe): ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._
 
 ```bash
 # Generate a 16-character URL-Safe string
@@ -114,8 +116,7 @@ Arguments:
 Options:
   -s, --salt <FILE>         Optional file to use as an additional cryptographic salt
   -l, --length <LENGTH>     Length of the generated characters [default: 32]
-                            Setting this to 0 generates the maximum possible length
-  -c, --charset <CHARSET>   Character set to use (64, us, ps) [default: ps]
+  -c, --charset <CHARSET>   Character set to use (64, us, ps, ss) [default: ps]
   -r, --rule <RULE>         Modify the charset by removing and appending characters (Format: 'remove:add')
   -n, --number <NUMBER>     Number of strings to generate
                             Setting this, seeds are auto-generated; conflicts with [SEED]
