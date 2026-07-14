@@ -13,6 +13,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    env:
+      ARCHIVE_NAME: ""
     strategy:
       fail-fast: false
       matrix:
@@ -95,7 +97,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: binary-${{ matrix.target }}
-        path: $ARCHIVE_NAME
+        path: ${{ env.ARCHIVE_NAME }}
 
   release:
     name: Create GitHub Release
