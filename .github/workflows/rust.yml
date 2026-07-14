@@ -37,6 +37,12 @@ jobs:
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             bin: gacs
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            bin: gacs
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            bin: gacs
 
     steps:
     - name: Checkout code
@@ -88,7 +94,7 @@ jobs:
           echo "ARCHIVE_NAME=gacs-${{ matrix.target }}.zip" >> $GITHUB_ENV
         fi
 
-        if [ "${{ runner.os }}" = "Linux" ]; then
+        if [ "${{ runner.os }}" = "Linux" ] || [ "${{ runner.os }}" = "macOS" ]; then
           tar -czvf ../../../gacs-${{ matrix.target }}.tar.gz ${{ matrix.bin }}
           echo "ARCHIVE_NAME=gacs-${{ matrix.target }}.tar.gz" >> $GITHUB_ENV
         fi
