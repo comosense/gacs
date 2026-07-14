@@ -20,7 +20,16 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             bin: gacs.exe
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            bin: gacs.exe
           - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            bin: gacs
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            bin: gacs
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             bin: gacs
           - target: aarch64-unknown-linux-musl
@@ -38,12 +47,23 @@ jobs:
         targets: ${{ matrix.target }}
         components: rust-src
 
-    - name: Install Linux Cross-Compiler (Aarch64 Musl)
-      if: matrix.target == 'aarch64-unknown-linux-musl'
+    - name: Install Linux Cross-Compiler & Tools
+      if: contains(matrix.target, 'linux') && matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
         sudo apt-get install -y musl-tools gcc-aarch64-linux-gnu
-        echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+        if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+        fi
+
+        if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+        fi
+
+        if [ "${{ matrix.target }}" = "x86_64-unknown-linux-musl" ]; then
+          echo "CC=musl-gcc" >> $GITHUB_ENV
+        fi
 
     - name: Cargo Cache
       uses: Swatinem/rust-cache@v2
@@ -64,7 +84,9 @@ jobs:
         if [ "${{ runner.os }}" = "Windows" ]; then
           7z a ../../../gacs-${{ matrix.target }}.zip ${{ matrix.bin }}
           echo "ARCHIVE_NAME=gacs-${{ matrix.target }}.zip" >> $GITHUB_ENV
-        else
+        fi
+
+        if [ "${{ runner.os }}" = "Linux" ]; then
           tar -czvf ../../../gacs-${{ matrix.target }}.tar.gz ${{ matrix.bin }}
           echo "ARCHIVE_NAME=gacs-${{ matrix.target }}.tar.gz" >> $GITHUB_ENV
         fi
@@ -73,7 +95,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: binary-${{ matrix.target }}
-        path: ${{ env.ARCHIVE_NAME }}
+        path: $ARCHIVE_NAME
 
   release:
     name: Create GitHub Release
