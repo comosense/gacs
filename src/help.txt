@@ -10,8 +10,10 @@ Options:
   -l, --length <LENGTH>     Length of the generated characters [default: {d_len}]
   -c, --charset <CHARSET>   Character set to use ({cs_64}, {cs_us}, {cs_ps}, {cs_ss}) [default: {d_cs}]
   -r, --rule <RULE>         Modify the charset by removing and appending characters (Format: 'remove:add')
-  -n, --number <NUMBER>     Number of strings to generate
-                            Setting this, seeds are auto-generated; conflicts with [SEED]
+  -N, --number <NUMBER>     Number of strings to generate
+                            When this is set, seeds are auto-generated; conflicts with [SEED]
+  -L, --slength <NUMBER>    Length of the seed to auto-generate; conflicts with [SEED]
+                            If omitted, the maximum possible length is applied
   -v, --verbose             Print detailed configuration along with the generated characters
   -h, --help                Print help
   -V, --version             Print version

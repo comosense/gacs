@@ -34,6 +34,7 @@ pub struct Args {
     charset: Charset,
     rule: Option<String>,
     number: Option<usize>,
+    slength: Option<usize>,
     verbose: bool,
 }
 
@@ -54,20 +55,27 @@ impl Args {
         let mut charset: Charset = Self::DEFAULT_CHARSET;
         let mut rule: Option<String> = None;
         let mut number: Option<usize> = None;
+        let mut slength: Option<usize> = None;
         let mut verbose: bool = false;
 
         while let Some(a) = args.next() {
             match a.as_str() {
                 "-s" | "--salt" => {
-                    let val: String = args.next().ok_or(ArgsError::MissingVal(a))?;
+                    let val: String = args
+                        .next()
+                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
                     salt = Some(PathBuf::from(&val));
                 }
                 "-l" | "--length" => {
-                    let val: String = args.next().ok_or(ArgsError::MissingVal(a.clone()))?;
+                    let val: String = args
+                        .next()
+                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
                     length = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
                 }
                 "-c" | "--charset" => {
-                    let val: String = args.next().ok_or(ArgsError::MissingVal(a.clone()))?;
+                    let val: String = args
+                        .next()
+                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
                     charset = match val.as_str() {
                         Self::CLI_CHARSET_64 => Charset::Base64,
                         Self::CLI_CHARSET_US => Charset::UrlSafe,
@@ -77,12 +85,22 @@ impl Args {
                     };
                 }
                 "-r" | "--rule" => {
-                    let val: String = args.next().ok_or(ArgsError::MissingVal(a))?;
+                    let val: String = args
+                        .next()
+                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
                     rule = Some(val);
                 }
-                "-n" | "--number" => {
-                    let val: String = args.next().ok_or(ArgsError::MissingVal(a.clone()))?;
+                "-N" | "--number" => {
+                    let val: String = args
+                        .next()
+                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
                     number = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
+                }
+                "-L" | "--slength" => {
+                    let val: String = args
+                        .next()
+                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
+                    slength = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
                 }
                 "-v" | "--verbose" => {
                     verbose = true;
@@ -108,10 +126,17 @@ impl Args {
             }
         }
 
-        if number.is_some() && seed.is_some() {
+        if seed.is_some() && number.is_some() {
             return Err(ArgsError::ConflictOpts(
                 String::from("SEED"),
-                String::from("--number"),
+                String::from("-N | --number"),
+            ));
+        }
+
+        if seed.is_some() && slength.is_some() {
+            return Err(ArgsError::ConflictOpts(
+                String::from("SEED"),
+                String::from("-L | --slength"),
             ));
         }
 
@@ -122,6 +147,7 @@ impl Args {
             charset,
             rule,
             number,
+            slength,
             verbose,
         })
     }
@@ -152,8 +178,8 @@ impl Args {
         &self.salt
     }
 
-    pub fn length(&self) -> &Option<usize> {
-        &self.length
+    pub fn length(&self) -> Option<usize> {
+        self.length
     }
 
     pub fn charset(&self) -> &Charset {
@@ -164,11 +190,15 @@ impl Args {
         &self.rule
     }
 
-    pub fn number(&self) -> &Option<usize> {
-        &self.number
+    pub fn number(&self) -> Option<usize> {
+        self.number
     }
 
-    pub fn verbose(&self) -> &bool {
-        &self.verbose
+    pub fn slength(&self) -> Option<usize> {
+        self.slength
+    }
+
+    pub fn verbose(&self) -> bool {
+        self.verbose
     }
 }

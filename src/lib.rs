@@ -23,7 +23,7 @@ pub enum GacsError {
     #[error("File operation failed: {0}")]
     File(std::io::Error),
 
-    #[error("File operation failed: {0}")]
+    #[error("Generated string contains invalid UTF-8: {0}")]
     InvalidOutput(std::string::FromUtf8Error),
 }
 
@@ -108,9 +108,9 @@ impl Gacs {
             .ok_or(GacsError::ShortSrc)?;
 
         let shuffler: u32 = u32::from_be_bytes(s_src.try_into().map_err(GacsError::SliceSrc)?);
-        let s_tbl: &[u8; Charset::TBL_SIZE] = &self.shuffle(shuffler);
+        let s_tbl: [u8; Charset::TBL_SIZE] = self.shuffle(shuffler);
 
-        self.map(s_tbl, c_src, length)
+        self.map(&s_tbl, c_src, length)
     }
 
     fn src(&self, seed: &str, salt: Option<&Path>) -> Result<[u8; Self::SRC_SIZE], GacsError> {
