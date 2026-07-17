@@ -36,19 +36,21 @@ pub enum Charset {
 
 impl Charset {
     const TBL_SIZE: usize = 1 << 6;
-    const BASE_TBLS: [[u8; Self::TBL_SIZE]; 4] = [
-        *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", // BASE64
-        *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", // URL-Safe
-        *b"ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_", // Password-Safe
-        *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._", // Shell-Safe
-    ];
+    const TBL_64: [u8; Self::TBL_SIZE] =
+        *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const TBL_US: [u8; Self::TBL_SIZE] =
+        *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const TBL_PS: [u8; Self::TBL_SIZE] =
+        *b"ABCDEFGH!JKLMN@PQRSTUVWXYZabcdefghijk#mnopqrstuvwxyz$%23456789-_";
+    const TBL_SS: [u8; Self::TBL_SIZE] =
+        *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._";
 
     fn tbl(&self) -> &[u8; Self::TBL_SIZE] {
         match self {
-            Self::Base64 => &Self::BASE_TBLS[0],
-            Self::UrlSafe => &Self::BASE_TBLS[1],
-            Self::PasswordSafe => &Self::BASE_TBLS[2],
-            Self::ShellSafe => &Self::BASE_TBLS[3],
+            Self::Base64 => &Self::TBL_64,
+            Self::UrlSafe => &Self::TBL_US,
+            Self::PasswordSafe => &Self::TBL_PS,
+            Self::ShellSafe => &Self::TBL_SS,
         }
     }
 }

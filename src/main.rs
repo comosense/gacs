@@ -26,7 +26,7 @@ enum MainError {
     Str(#[from] std::str::Utf8Error),
 }
 
-fn gen_seed(length: Option<usize>, uniq: usize) -> Result<String, MainError> {
+fn make_seed(length: Option<usize>, uniq: usize) -> Result<String, MainError> {
     let sb: String = SystemTime::now()
         .duration_since(UNIX_EPOCH)?
         .as_nanos()
@@ -38,10 +38,10 @@ fn gen_seed(length: Option<usize>, uniq: usize) -> Result<String, MainError> {
 fn run() -> Result<(), MainError> {
     let args: Args = Args::parse()?;
 
-    let salt: Option<&Path> = args.salt().as_deref();
+    let salt: Option<&Path> = args.salt();
     let length: Option<usize> = args.length();
     let charset: &gacs::Charset = args.charset();
-    let rule: Option<&str> = args.rule().as_deref();
+    let rule: Option<&str> = args.rule();
     let verbose: bool = args.verbose();
 
     let gacs: Gacs = Gacs::build(charset, rule)?;
@@ -58,11 +58,11 @@ fn run() -> Result<(), MainError> {
             let number: usize = args.number().unwrap_or(1);
             let slength: Option<usize> = args.slength();
             for i in 0..number {
-                let seed: String = gen_seed(slength, i)?;
+                let seed: String = make_seed(slength, i)?;
                 let generated: String = gacs.generate(&seed, salt, length)?;
                 println!("{}", generated);
                 if verbose {
-                    eprintln!("  [SEED(Auto)] {}", &seed);
+                    eprintln!("  [SEED(Auto)] {}", seed);
                 }
             }
         }

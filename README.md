@@ -2,7 +2,7 @@
 
 A deterministic ASCII character generator written in Rust.
 
-`gacs` is a CLI tool that generates reproducible ASCII strings (such as strong passwords or secret tokens) based on a seed string, an optional file-based salt, and customizable character sets. It leverages cryptographically secure hashing (e.g., SHA-512) to ensure the outputs are unpredictable without the exact key parameters.
+`gacs` is a CLI tool that generates reproducible ASCII strings (such as passwords or secret tokens) based on a seed string, an optional file-based salt, and customizable character sets. It leverages cryptographically secure hashing (e.g., SHA-512) to ensure the outputs are unpredictable without the exact key parameters.
 
 ## Features
 

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use gacs::Charset;
 use thiserror::Error;
@@ -170,12 +170,12 @@ impl Args {
         );
     }
 
-    pub fn seed(&self) -> &Option<String> {
-        &self.seed
+    pub fn seed(&self) -> Option<&str> {
+        self.seed.as_deref()
     }
 
-    pub fn salt(&self) -> &Option<PathBuf> {
-        &self.salt
+    pub fn salt(&self) -> Option<&Path> {
+        self.salt.as_deref()
     }
 
     pub fn length(&self) -> Option<usize> {
@@ -186,8 +186,8 @@ impl Args {
         &self.charset
     }
 
-    pub fn rule(&self) -> &Option<String> {
-        &self.rule
+    pub fn rule(&self) -> Option<&str> {
+        self.rule.as_deref()
     }
 
     pub fn number(&self) -> Option<usize> {
