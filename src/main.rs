@@ -19,10 +19,10 @@ enum MainError {
     #[error(transparent)]
     Gacs(#[from] GacsError),
 
-    #[error("Failed to get System Time: {0}")]
+    #[error("Failed to get system time: {0}")]
     SystemTime(#[from] std::time::SystemTimeError),
 
-    #[error("Failed to show charset: {0}")]
+    #[error("Failed to decode charset as UTF-8: {0}")]
     Str(#[from] std::str::Utf8Error),
 }
 
@@ -55,10 +55,10 @@ fn run() -> Result<(), MainError> {
             }
         }
         None => {
-            let number: usize = args.number().unwrap_or(1);
-            let slength: Option<usize> = args.slength();
-            for i in 0..number {
-                let seed: String = make_seed(slength, i)?;
+            let count: usize = args.count().unwrap_or(1);
+            let seed_length: Option<usize> = args.seed_length();
+            for i in 0..count {
+                let seed: String = make_seed(seed_length, i)?;
                 let generated: String = gacs.generate(&seed, salt, length)?;
                 println!("{}", generated);
                 if verbose {

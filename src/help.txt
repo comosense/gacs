@@ -6,14 +6,14 @@ Arguments:
   [SEED]  Base string to generate the characters from (generated automatically if omitted)
 
 Options:
-  -s, --salt <FILE>         Optional file to use as an additional cryptographic salt
-  -l, --length <LENGTH>     Length of the generated characters [default: {d_len}]
-  -c, --charset <CHARSET>   Character set to use ({cs_64}, {cs_us}, {cs_ps}, {cs_ss}) [default: {d_cs}]
-  -r, --rule <RULE>         Modify the charset by removing and appending characters (Format: 'remove:add')
-  -N, --number <NUMBER>     Number of strings to generate
-                            When this is set, seeds are auto-generated; conflicts with [SEED]
-  -L, --slength <NUMBER>    Length of the seed to auto-generate; conflicts with [SEED]
-                            If omitted, the maximum possible length is applied
-  -v, --verbose             Print detailed configuration along with the generated characters
-  -h, --help                Print help
-  -V, --version             Print version
+  -s, --salt <FILE>           Optional file to use as an additional cryptographic salt
+  -l, --length <LENGTH>       Length of the generated string [default: {d_len}]
+  -c, --charset <CHARSET>     Character set to use ({cs_64}, {cs_us}, {cs_ps}, {cs_ss}) [default: {d_cs}]
+  -r, --rule <RULE>           Modify the charset by removing and appending characters (Format: 'remove:add')
+  -n, --count <COUNT>         Number of strings to generate
+                              When this is set, seeds are auto-generated; conflicts with [SEED]
+  -L, --seed-length <LENGTH>  Length of the auto-generated seed; conflicts with [SEED]
+                              If omitted, the maximum possible length is applied
+  -v, --verbose               Print detailed configuration along with the generated string(s)
+  -h, --help                  Print help
+  -V, --version               Print version

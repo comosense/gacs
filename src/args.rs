@@ -33,8 +33,8 @@ pub struct Args {
     length: Option<usize>,
     charset: Charset,
     rule: Option<String>,
-    number: Option<usize>,
-    slength: Option<usize>,
+    count: Option<usize>,
+    seed_length: Option<usize>,
     verbose: bool,
 }
 
@@ -54,8 +54,8 @@ impl Args {
         let mut length: Option<usize> = Some(Self::DEFAULT_LENGTH);
         let mut charset: Charset = Self::DEFAULT_CHARSET;
         let mut rule: Option<String> = None;
-        let mut number: Option<usize> = None;
-        let mut slength: Option<usize> = None;
+        let mut count: Option<usize> = None;
+        let mut seed_length: Option<usize> = None;
         let mut verbose: bool = false;
 
         while let Some(a) = args.next() {
@@ -90,17 +90,17 @@ impl Args {
                         .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
                     rule = Some(val);
                 }
-                "-N" | "--number" => {
+                "-n" | "--count" => {
                     let val: String = args
                         .next()
                         .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
-                    number = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
+                    count = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
                 }
-                "-L" | "--slength" => {
+                "-L" | "--seed-length" => {
                     let val: String = args
                         .next()
                         .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
-                    slength = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
+                    seed_length = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
                 }
                 "-v" | "--verbose" => {
                     verbose = true;
@@ -126,17 +126,17 @@ impl Args {
             }
         }
 
-        if seed.is_some() && number.is_some() {
+        if seed.is_some() && count.is_some() {
             return Err(ArgsError::ConflictOpts(
                 String::from("SEED"),
-                String::from("-N | --number"),
+                String::from("-n | --count"),
             ));
         }
 
-        if seed.is_some() && slength.is_some() {
+        if seed.is_some() && seed_length.is_some() {
             return Err(ArgsError::ConflictOpts(
                 String::from("SEED"),
-                String::from("-L | --slength"),
+                String::from("-L | --seed-length"),
             ));
         }
 
@@ -146,8 +146,8 @@ impl Args {
             length,
             charset,
             rule,
-            number,
-            slength,
+            count,
+            seed_length,
             verbose,
         })
     }
@@ -190,12 +190,12 @@ impl Args {
         self.rule.as_deref()
     }
 
-    pub fn number(&self) -> Option<usize> {
-        self.number
+    pub fn count(&self) -> Option<usize> {
+        self.count
     }
 
-    pub fn slength(&self) -> Option<usize> {
-        self.slength
+    pub fn seed_length(&self) -> Option<usize> {
+        self.seed_length
     }
 
     pub fn verbose(&self) -> bool {

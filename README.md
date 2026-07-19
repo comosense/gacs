@@ -13,7 +13,7 @@ A deterministic ASCII character generator written in Rust.
   * URL-Safe characters.
   * Password-Safe characters (excludes visually ambiguous characters like `O`, `0`, `l`, `1` and introduces symbols).
   * Shell-Safe characters (includes only alphanumeric characters, `.`, and `_` to avoid shell-specific quotation issues).
-* **Custom Character Modification Rules**: Allows you to temporarily remove specific characters from the base set and append new ones to meet specific string policies.
+* **Custom Character Modification Rules**: Allows you to customize the base set by removing specific characters and appending new ones to meet specific string policies.
 
 ## Installation & Build
 
@@ -127,12 +127,12 @@ $ gacs my_secret_seed -s path/to/secret_image.jpg
 
 ### Bulk Generation
 
-Generate multiple independent strings at once using the `-N` (`--number`) flag. Note that when generating multiple strings, seeds are automatically generated; this option cannot be used simultaneously with a manual `[SEED]` argument.
+Generate multiple independent strings at once using the `-n` (`--count`) flag. Note that when generating multiple strings, seeds are automatically generated; this option cannot be used simultaneously with a manual `[SEED]` argument.
 To view or save the auto-generated seeds for future reproduction, combine this option with the `-v` (`--verbose`) flag.
 
 ```bash
 # Generate 3 strings simultaneously with their auto-generated seeds
-$ gacs -N 3 -v
+$ gacs -n 3 -v
 sF@#%Rbq5CM%Y9CxL%6Xpo3$okq$RnJT
   [SEED(Auto)] q1akBXyCPWB8vneEn3UKkCA9vqN7AI8MYIRH0gPfDangyi3DqoUh8.CJlggUDSv3XBCiYffVle9w_Grx
 r4$m#HGvP-_ysF35xH2s7EC5Jq#xaiNb
@@ -146,8 +146,8 @@ jT_V@beU-KU5%Li#G_hRWDPVLvK2$FAq
 
 ### Controlling Auto-Generated Seed Length
 
-When you omit the manual `[SEED]` argument (or use `-N` for bulk generation), `gacs` automatically generates seed strings. By default, it generates them at the maximum possible length.
-You can customize the length of these auto-generated seeds using the `-L` (`--slength`) option.
+When you omit the manual `[SEED]` argument (or use `-n` for bulk generation), `gacs` automatically generates seed strings. By default, it generates them at the maximum possible length.
+You can customize the length of these auto-generated seeds using the `-L` (`--seed-length`) option.
 
 ```bash
 # Generate a string using a shorter 16-character auto-generated seed
@@ -160,7 +160,7 @@ WPkMAdVNBhJ2$fG24ZWZUVN#Ss-qR$gZ
 ```
 
 [!IMPORTANT]
-The `-L` (`--slength`) option specifically configures the length of the seed, not the final output string. It conflicts with a manual `[SEED]` argument and can only be used when seeds are being auto-generated.
+The `-L` (`--seed-length`) option specifically configures the length of the seed, not the final output string. It conflicts with a manual `[SEED]` argument and can only be used when seeds are being auto-generated.
 
 ## Command Line Options
 
@@ -169,17 +169,17 @@ Arguments:
   [SEED]  Base string to generate the characters from (generated automatically if omitted)
 
 Options:
-  -s, --salt <FILE>         Optional file to use as an additional cryptographic salt
-  -l, --length <LENGTH>     Length of the generated characters [default: 32]
-  -c, --charset <CHARSET>   Character set to use (64, us, ps, ss) [default: ps]
-  -r, --rule <RULE>         Modify the charset by removing and appending characters (Format: 'remove:add')
-  -N, --number <NUMBER>     Number of strings to generate
-                            When this is set, seeds are auto-generated; conflicts with [SEED]
-  -L, --slength <NUMBER>    Length of the seed to auto-generate; conflicts with [SEED]
-                            If omitted, the maximum possible length is applied
-  -v, --verbose             Print detailed configuration along with the generated characters
-  -h, --help                Print help
-  -V, --version             Print version
+  -s, --salt <FILE>           Optional file to use as an additional cryptographic salt
+  -l, --length <LENGTH>       Length of the generated string [default: 32]
+  -c, --charset <CHARSET>     Character set to use (64, us, ps, ss) [default: ps]
+  -r, --rule <RULE>           Modify the charset by removing and appending characters (Format: 'remove:add')
+  -n, --count <COUNT>         Number of strings to generate
+                              When this is set, seeds are auto-generated; conflicts with [SEED]
+  -L, --seed-length <LENGTH>  Length of the auto-generated seed; conflicts with [SEED]
+                              If omitted, the maximum possible length is applied
+  -v, --verbose               Print detailed configuration along with the generated string(s)
+  -h, --help                  Print help
+  -V, --version               Print version
 
 ```
 
