@@ -10,39 +10,28 @@ on:
 jobs:
   build:
     name: Build for ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{
+      contains(matrix.target, 'windows') && 'windows-latest' ||
+      contains(matrix.target, 'apple') && 'macos-latest' ||
+      'ubuntu-latest'
+      }}
     permissions:
       contents: read
     env:
       ARCHIVE_NAME: ""
+      BIN_NAME: ${{ contains(matrix.target, 'windows') && 'gacs.exe' || 'gacs' }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            bin: gacs.exe
-          - target: aarch64-pc-windows-msvc
-            os: windows-latest
-            bin: gacs.exe
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            bin: gacs
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            bin: gacs
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
-            bin: gacs
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-latest
-            bin: gacs
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            bin: gacs
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            bin: gacs
+        target:
+          - x86_64-pc-windows-msvc
+          - aarch64-pc-windows-msvc
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
 
     steps:
     - name: Checkout code
@@ -56,13 +45,13 @@ jobs:
         components: rust-src
 
     - name: Install Linux Cross-Compiler & Tools
-      if: contains(matrix.target, 'linux') && matrix.os == 'ubuntu-latest'
+      if: contains(matrix.target, 'linux')
       run: |
         sudo apt-get update
         sudo apt-get install -y musl-tools gcc-aarch64-linux-gnu
 
         if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=rust-lld" >> $GITHUB_ENV
         fi
 
         if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
@@ -89,13 +78,11 @@ jobs:
       run: |
         cd target/${{ matrix.target }}/release/
 
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          7z a ../../../gacs-${{ matrix.target }}.zip ${{ matrix.bin }}
+        if [ "${{ contains(matrix.target, 'windows') }}" = "true" ]; then
+          7z a ../../../gacs-${{ matrix.target }}.zip ${{ env.BIN_NAME }}
           echo "ARCHIVE_NAME=gacs-${{ matrix.target }}.zip" >> $GITHUB_ENV
-        fi
-
-        if [ "${{ runner.os }}" = "Linux" ] || [ "${{ runner.os }}" = "macOS" ]; then
-          tar -czvf ../../../gacs-${{ matrix.target }}.tar.gz ${{ matrix.bin }}
+        else
+          tar -czvf ../../../gacs-${{ matrix.target }}.tar.gz ${{ env.BIN_NAME }}
           echo "ARCHIVE_NAME=gacs-${{ matrix.target }}.tar.gz" >> $GITHUB_ENV
         fi
 
