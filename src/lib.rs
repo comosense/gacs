@@ -5,26 +5,26 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum GacsError {
-    #[error("Invalid rule: expected 'remove:add' (e.g., 'Zz9:^&*')")]
+    #[error(transparent)]
+    Array(#[from] std::array::TryFromSliceError),
+
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    String(#[from] std::string::FromUtf8Error),
+
+    #[error("invalid rule: expected 'remove:add' (e.g., 'Zz9:^&*')")]
     InvalidRuleFmt,
 
-    #[error("Invalid rule: contains duplicates or characters not found in the charset")]
+    #[error("invalid rule: contains duplicates or characters not found in the charset")]
     InvalidRuleChars,
 
-    #[error("Source is too short")]
-    ShortSrc,
-
-    #[error("Requested length ({0}) exceeds the maximum length ({1})")]
+    #[error("requested length ({0}) exceeds the maximum length ({1})")]
     LengthExceeded(usize, usize),
 
-    #[error("Failed to slice source: {0}")]
-    SliceSrc(std::array::TryFromSliceError),
-
-    #[error("File operation failed: {0}")]
-    File(std::io::Error),
-
-    #[error("Generated string contains invalid UTF-8: {0}")]
-    InvalidOutput(std::string::FromUtf8Error),
+    #[error("internal error: hash source is unexpectedly short")]
+    ShortSrc,
 }
 
 pub enum Charset {
@@ -109,7 +109,7 @@ impl Gacs {
             .split_at_checked(std::mem::size_of::<u32>())
             .ok_or(GacsError::ShortSrc)?;
 
-        let shuffler: u32 = u32::from_be_bytes(s_src.try_into().map_err(GacsError::SliceSrc)?);
+        let shuffler: u32 = u32::from_be_bytes(s_src.try_into()?);
         let s_tbl: [u8; Charset::TBL_SIZE] = self.shuffle(shuffler);
 
         self.map(&s_tbl, c_src, length)
@@ -123,10 +123,10 @@ impl Gacs {
         if let Some(p) = salt {
             hasher.update(Self::SALT_DELIM);
 
-            let mut file: File = File::open(p).map_err(GacsError::File)?;
+            let mut file: File = File::open(p)?;
             let mut buf: [u8; Self::FILE_BUFFER_SIZE] = [0u8; Self::FILE_BUFFER_SIZE];
             loop {
-                let cnt: usize = file.read(&mut buf).map_err(GacsError::File)?;
+                let cnt: usize = file.read(&mut buf)?;
                 if cnt == 0 {
                     break;
                 }
@@ -156,16 +156,10 @@ impl Gacs {
         length: Option<usize>,
     ) -> Result<String, GacsError> {
         let map_len: usize = (src.len() * 4).div_ceil(3);
-        let len: usize = match length {
-            Some(l) => {
-                if l > map_len {
-                    return Err(GacsError::LengthExceeded(l, map_len));
-                } else {
-                    l
-                }
-            }
-            None => map_len,
-        };
+        let len: usize = length.unwrap_or(map_len);
+        if len > map_len {
+            return Err(GacsError::LengthExceeded(len, map_len));
+        }
 
         let mut mapped: Vec<u8> = Vec::with_capacity(map_len);
         for chunk in src.chunks(3) {
@@ -190,6 +184,6 @@ impl Gacs {
         }
         mapped.truncate(len);
 
-        String::from_utf8(mapped).map_err(GacsError::InvalidOutput)
+        Ok(String::from_utf8(mapped)?)
     }
 }

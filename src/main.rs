@@ -1,5 +1,6 @@
 use std::{
     path::Path,
+    process::ExitCode,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -19,25 +20,23 @@ enum MainError {
     #[error(transparent)]
     Gacs(#[from] GacsError),
 
-    #[error("Failed to get system time: {0}")]
-    SystemTime(#[from] std::time::SystemTimeError),
+    #[error(transparent)]
+    Time(#[from] std::time::SystemTimeError),
 
-    #[error("Failed to decode charset as UTF-8: {0}")]
+    #[error(transparent)]
     Str(#[from] std::str::Utf8Error),
 }
 
-fn make_seed(length: Option<usize>, uniq: usize) -> Result<String, MainError> {
-    let sb: String = SystemTime::now()
+fn seed_base(uniq: usize) -> Result<String, MainError> {
+    Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)?
         .as_nanos()
         .to_string()
-        + &uniq.to_string();
-    Ok(Gacs::build(&Charset::ShellSafe, None)?.generate(&sb, None, length)?)
+        + &std::process::id().to_string()
+        + &uniq.to_string())
 }
 
-fn run() -> Result<(), MainError> {
-    let args: Args = Args::parse()?;
-
+fn run(args: Args) -> Result<(), MainError> {
     let salt: Option<&Path> = args.salt();
     let length: Option<usize> = args.length();
     let charset: &gacs::Charset = args.charset();
@@ -47,22 +46,24 @@ fn run() -> Result<(), MainError> {
     let gacs: Gacs = Gacs::build(charset, rule)?;
 
     match args.seed() {
-        Some(s) => {
-            let generated: String = gacs.generate(s, salt, length)?;
+        Some(seed) => {
+            let generated: String = gacs.generate(seed, salt, length)?;
             println!("{}", generated);
             if verbose {
-                eprintln!("  [SEED] {}", s);
+                eprintln!("  [SEED] {}", seed);
             }
         }
         None => {
-            let count: usize = args.count().unwrap_or(1);
+            let seeder: Gacs = Gacs::build(&Charset::ShellSafe, None)?;
             let seed_length: Option<usize> = args.seed_length();
+
+            let count: usize = args.count().unwrap_or(1);
             for i in 0..count {
-                let seed: String = make_seed(seed_length, i)?;
-                let generated: String = gacs.generate(&seed, salt, length)?;
+                let auto_seed: String = seeder.generate(&seed_base(i)?, None, seed_length)?;
+                let generated: String = gacs.generate(&auto_seed, salt, length)?;
                 println!("{}", generated);
                 if verbose {
-                    eprintln!("  [SEED(Auto)] {}", seed);
+                    eprintln!("  [SEED(Auto)] {}", auto_seed);
                 }
             }
         }
@@ -81,16 +82,15 @@ fn run() -> Result<(), MainError> {
     Ok(())
 }
 
-fn main() {
-    if let Err(e) = run() {
-        match e {
-            MainError::Args(ArgsError::Help) | MainError::Args(ArgsError::Version) => {
-                std::process::exit(0)
-            }
-            _ => {
-                eprintln!("Error: {e}");
-                std::process::exit(1);
-            }
-        }
+fn main() -> ExitCode {
+    if let Err(e) = match Args::parse() {
+        Ok(Some(a)) => run(a),
+        Ok(None) => Ok(()),
+        Err(e) => Err(MainError::Args(e)),
+    } {
+        eprintln!("{}: {}", env!("CARGO_PKG_NAME"), e);
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
     }
 }

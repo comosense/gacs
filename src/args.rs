@@ -1,30 +1,20 @@
 use std::path::{Path, PathBuf};
 
-use gacs::Charset;
+use lexopt::prelude::*;
 use thiserror::Error;
+
+use gacs::Charset;
 
 #[derive(Error, Debug)]
 pub enum ArgsError {
-    #[error("Missing value for {0}")]
-    MissingVal(String),
+    #[error(transparent)]
+    Lexopt(#[from] lexopt::Error),
 
-    #[error("Invalid value for {0}: '{1}'")]
-    InvalidVal(String, String),
+    #[error("invalid charset: '{0}'")]
+    InvalidCharset(String),
 
-    #[error("Conflicting arguments: {0} and {1}")]
+    #[error("conflicting arguments: {0} and {1}")]
     ConflictOpts(String, String),
-
-    #[error("Unknown option '{0}'")]
-    UnknownOpt(String),
-
-    #[error("Unexpected positional argument '{0}'")]
-    UnexpectedPos(String),
-
-    #[error("Help requested")]
-    Help,
-
-    #[error("Version requested")]
-    Version,
 }
 
 pub struct Args {
@@ -39,16 +29,15 @@ pub struct Args {
 }
 
 impl Args {
+    const DEFAULT_CHARSET: Charset = Charset::PasswordSafe;
+    const DEFAULT_LENGTH: usize = 32;
+
     const CLI_CHARSET_64: &str = "64";
     const CLI_CHARSET_US: &str = "us";
     const CLI_CHARSET_PS: &str = "ps";
     const CLI_CHARSET_SS: &str = "ss";
 
-    const DEFAULT_CHARSET: Charset = Charset::PasswordSafe;
-    const DEFAULT_LENGTH: usize = 32;
-
-    pub fn parse() -> Result<Self, ArgsError> {
-        let mut args: std::iter::Skip<std::env::Args> = std::env::args().skip(1);
+    pub fn parse() -> Result<Option<Args>, ArgsError> {
         let mut seed: Option<String> = None;
         let mut salt: Option<PathBuf> = None;
         let mut length: Option<usize> = Some(Self::DEFAULT_LENGTH);
@@ -58,71 +47,42 @@ impl Args {
         let mut seed_length: Option<usize> = None;
         let mut verbose: bool = false;
 
-        while let Some(a) = args.next() {
-            match a.as_str() {
-                "-s" | "--salt" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
-                    salt = Some(PathBuf::from(&val));
+        let mut parser: lexopt::Parser = lexopt::Parser::from_env();
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Short('s') | Long("salt") => {
+                    salt = Some(parser.value()?.parse()?);
                 }
-                "-l" | "--length" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
-                    length = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
+                Short('l') | Long("length") => {
+                    length = Some(parser.value()?.parse()?);
                 }
-                "-c" | "--charset" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
-                    charset = match val.as_str() {
-                        Self::CLI_CHARSET_64 => Charset::Base64,
-                        Self::CLI_CHARSET_US => Charset::UrlSafe,
-                        Self::CLI_CHARSET_PS => Charset::PasswordSafe,
-                        Self::CLI_CHARSET_SS => Charset::ShellSafe,
-                        _ => return Err(ArgsError::InvalidVal(a, val)),
-                    };
+                Short('c') | Long("charset") => {
+                    charset = parser.value()?.parse_with(Self::get_charset)?;
                 }
-                "-r" | "--rule" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
-                    rule = Some(val);
+                Short('r') | Long("rule") => {
+                    rule = Some(parser.value()?.parse()?);
                 }
-                "-n" | "--count" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
-                    count = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
+                Short('n') | Long("count") => {
+                    count = Some(parser.value()?.parse()?);
                 }
-                "-L" | "--seed-length" => {
-                    let val: String = args
-                        .next()
-                        .ok_or_else(|| ArgsError::MissingVal(a.clone()))?;
-                    seed_length = Some(val.parse().map_err(|_| ArgsError::InvalidVal(a, val))?);
+                Short('L') | Long("seed-length") => {
+                    seed_length = Some(parser.value()?.parse()?);
                 }
-                "-v" | "--verbose" => {
+                Short('v') | Long("verbose") => {
                     verbose = true;
                 }
-                "-h" | "--help" => {
+                Short('h') | Long("help") => {
                     Self::print_help();
-                    return Err(ArgsError::Help);
+                    return Ok(None);
                 }
-                "-V" | "--version" => {
+                Short('V') | Long("version") => {
                     println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-                    return Err(ArgsError::Version);
+                    return Ok(None);
                 }
-                _ if a.starts_with('-') => {
-                    return Err(ArgsError::UnknownOpt(a));
+                Value(val) if seed.is_none() => {
+                    seed = Some(val.parse()?);
                 }
-                _ => {
-                    if seed.is_none() {
-                        seed = Some(a);
-                    } else {
-                        return Err(ArgsError::UnexpectedPos(a));
-                    }
-                }
+                _ => return Err(ArgsError::Lexopt(arg.unexpected())),
             }
         }
 
@@ -140,7 +100,7 @@ impl Args {
             ));
         }
 
-        Ok(Args {
+        Ok(Some(Args {
             seed,
             salt,
             length,
@@ -149,7 +109,7 @@ impl Args {
             count,
             seed_length,
             verbose,
-        })
+        }))
     }
 
     fn print_help() {
@@ -168,6 +128,16 @@ impl Args {
                 Charset::ShellSafe => Self::CLI_CHARSET_SS,
             },
         );
+    }
+
+    fn get_charset(cli_charset: &str) -> Result<Charset, ArgsError> {
+        match cli_charset {
+            Self::CLI_CHARSET_64 => Ok(Charset::Base64),
+            Self::CLI_CHARSET_US => Ok(Charset::UrlSafe),
+            Self::CLI_CHARSET_PS => Ok(Charset::PasswordSafe),
+            Self::CLI_CHARSET_SS => Ok(Charset::ShellSafe),
+            other => Err(ArgsError::InvalidCharset(other.to_string())),
+        }
     }
 
     pub fn seed(&self) -> Option<&str> {

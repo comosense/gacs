@@ -1,11 +1,12 @@
 [package]
 name = "gacs"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2024"
 
 [dependencies]
+lexopt = { version = "0.3.2", default-features = false }
 sha2 = { version = "0.11.0", default-features = false }
-thiserror = { version = "2.0.18", default-features = false }
+thiserror = { version = "2.0.19", default-features = false }
 
 [profile.release]
 codegen-units = 1
