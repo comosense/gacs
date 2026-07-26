@@ -1,4 +1,4 @@
-# gacs
+# [gacs](https://github.com/comosense/gacs)
 
 A deterministic ASCII character generator written in Rust.
 
